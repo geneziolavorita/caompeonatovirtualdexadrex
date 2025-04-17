@@ -12,8 +12,10 @@ module.exports = {
         'board-light': '#eeeed2',
         'board-highlight': 'rgba(255, 215, 0, 0.5)',
         'gold-accent': '#d4af37',
-        'wood-dark': '#8b4513',
-        'wood-light': '#deb887'
+        'wood-dark': '#8B4513',   // SaddleBrown
+        'wood-medium': '#A0522D', // Sienna
+        'wood-light': '#DEB887',  // BurlyWood
+        'wood-lightest': '#F5DEB3', // Wheat
       }
     },
   },

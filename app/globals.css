@@ -332,4 +332,31 @@ input[type="checkbox"] {
     padding: 10px;
     gap: 15px;
   }
+}
+
+/* Estilos para o modo tela cheia */
+.game-container.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1000;
+  background-color: theme('colors.wood-lightest');
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+/* Estilos para os botões no modo tela cheia */
+.fullscreen button {
+  font-size: 1.1rem;
+  padding: 0.7rem 1rem;
+}
+
+/* Melhorar a responsividade do tabuleiro */
+@media (max-width: 640px) {
+  .game-container .board-container {
+    width: 100%;
+    height: auto;
+  }
 } 

@@ -4,7 +4,11 @@ import { useState, useEffect, useRef } from 'react'
 import Chessboard from '@/components/Chessboard'
 import GameControls from '@/components/GameControls'
 import PlayerInfo from '@/components/PlayerInfo'
+import PlayerRegistration from '@/components/PlayerRegistration'
+import TournamentRanking from '@/components/TournamentRanking'
+import PlayerSelect from '@/components/PlayerSelect'
 import { Chess } from 'chess.js'
+import { saveGameResult } from '@/lib/gameUtils'
 
 // Componente de ícone para tela cheia
 const FullscreenIcon = () => (
@@ -24,10 +28,15 @@ export default function Home() {
   const [game, setGame] = useState<Chess>(new Chess())
   const [player1Name, setPlayer1Name] = useState('Jogador 1')
   const [player2Name, setPlayer2Name] = useState('Jogador 2')
+  const [player1Id, setPlayer1Id] = useState('')
+  const [player2Id, setPlayer2Id] = useState('')
   const [gameMode, setGameMode] = useState<'player' | 'computer'>('player')
   const [gameStarted, setGameStarted] = useState(false)
   const [showRules, setShowRules] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [showRanking, setShowRanking] = useState(false)
+  const [showRegistration, setShowRegistration] = useState(false)
+  const [gameStartTime, setGameStartTime] = useState<Date | null>(null)
   const gameContainerRef = useRef<HTMLDivElement>(null)
 
   // Verificar se a API de tela cheia está disponível
@@ -84,64 +93,57 @@ export default function Home() {
     };
   }, []);
 
-  const startGame = () => {
+  const handleStartGame = () => {
+    if (gameMode === 'player' && (!player1Id || !player2Id)) {
+      alert('Por favor, selecione ambos os jogadores para iniciar o jogo.');
+      return;
+    }
+    
     setGame(new Chess())
     setGameStarted(true)
+    setGameStartTime(new Date())
   }
 
-  const resetGame = () => {
-    // Se estiver em tela cheia, saia dela antes de voltar para a tela inicial
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(err => console.error(err));
-    }
-    setGame(new Chess())
-    setGameStarted(false)
-  }
-
-  const toggleGameMode = () => {
-    setGameMode(gameMode === 'player' ? 'computer' : 'player')
-    if (gameStarted) {
-      resetGame()
-    }
-  }
-
-  // Função melhorada para alternar o modo de tela cheia com suporte a diferentes navegadores
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement && 
-        !(document as any).webkitFullscreenElement && 
-        !(document as any).mozFullScreenElement && 
-        !(document as any).msFullscreenElement) {
-      // Entrar em modo de tela cheia
-      if (gameContainerRef.current) {
-        const element = gameContainerRef.current;
-        
-        if (element.requestFullscreen) {
-          element.requestFullscreen().catch(err => {
-            console.error(`Erro ao tentar entrar em modo de tela cheia: ${err.message}`);
-          });
-        } else if ((element as any).webkitRequestFullscreen) {
-          (element as any).webkitRequestFullscreen();
-        } else if ((element as any).mozRequestFullScreen) {
-          (element as any).mozRequestFullScreen();
-        } else if ((element as any).msRequestFullscreen) {
-          (element as any).msRequestFullscreen();
-        }
-      }
-    } else {
-      // Sair do modo de tela cheia
-      if (document.exitFullscreen) {
-        document.exitFullscreen().catch(err => {
-          console.error(`Erro ao tentar sair do modo de tela cheia: ${err.message}`);
+  const handleEndGame = () => {
+    if (gameStarted && gameStartTime && player1Id && player2Id) {
+      // Verificar se o jogo está em um estado final
+      if (game.isGameOver()) {
+        // Salvar o resultado do jogo
+        saveGameResult(
+          game,
+          player1Id,
+          player2Id,
+          player1Name,
+          player2Name,
+          gameStartTime
+        ).then((success) => {
+          if (success) {
+            alert('Jogo finalizado e resultado salvo!');
+          } else {
+            alert('Falha ao salvar o resultado do jogo.');
+          }
         });
-      } else if ((document as any).webkitExitFullscreen) {
-        (document as any).webkitExitFullscreen();
-      } else if ((document as any).mozCancelFullScreen) {
-        (document as any).mozCancelFullScreen();
-      } else if ((document as any).msExitFullscreen) {
-        (document as any).msExitFullscreen();
       }
     }
-  };
+    
+    setGameStarted(false)
+    setGameStartTime(null)
+  }
+
+  const handleSelectPlayer1 = (id: string, name: string) => {
+    setPlayer1Id(id);
+    setPlayer1Name(name);
+  }
+
+  const handleSelectPlayer2 = (id: string, name: string) => {
+    setPlayer2Id(id);
+    setPlayer2Name(name);
+  }
+
+  const handlePlayerRegistered = () => {
+    // Atualizar a lista de jogadores após um novo registro
+    // A atualização é automática devido à forma como os componentes foram construídos
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -157,122 +159,137 @@ export default function Home() {
       </div>
       
       {!gameStarted ? (
-        <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg">
-          <h2 className="text-2xl font-bold mb-4">Configuração do Jogo</h2>
-          <div className="mb-4">
-            <label className="block mb-2">Nome do Jogador 1 (Brancas):</label>
-            <input 
-              type="text" 
-              value={player1Name} 
-              onChange={(e) => setPlayer1Name(e.target.value)} 
-              className="w-full p-2 border rounded"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block mb-2">
-              {gameMode === 'player' ? 'Nome do Jogador 2 (Pretas):' : 'Jogando contra o computador'}
-            </label>
-            {gameMode === 'player' && (
-              <input 
-                type="text" 
-                value={player2Name} 
-                onChange={(e) => setPlayer2Name(e.target.value)} 
-                className="w-full p-2 border rounded"
-              />
-            )}
-          </div>
-          <div className="mb-6">
-            <button 
-              onClick={toggleGameMode} 
-              className="button bg-wood-dark text-white w-full mb-2"
-            >
-              {gameMode === 'player' 
-                ? 'Jogar contra o computador' 
-                : 'Jogar contra outro jogador'}
-            </button>
-          </div>
-          {fullscreenAvailable && (
-            <div className="mb-4">
-              <label className="flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={isFullscreen} 
-                  onChange={() => setIsFullscreen(!isFullscreen)}
-                  className="mr-2"
-                />
-                <span className="flex items-center">
-                  <FullscreenIcon /> Iniciar em Tela Cheia
-                </span>
-              </label>
-            </div>
-          )}
-          <button 
-            onClick={() => {
-              startGame();
-              // Se a opção de tela cheia estiver marcada e disponível, entrar em tela cheia
-              if (isFullscreen && fullscreenAvailable) {
-                // Pequeno atraso para garantir que o elemento já esteja renderizado
-                setTimeout(() => {
-                  if (gameContainerRef.current) {
-                    const element = gameContainerRef.current;
-                    
-                    if (element.requestFullscreen) {
-                      element.requestFullscreen().catch(err => {
-                        console.error(`Erro ao tentar entrar em modo de tela cheia: ${err.message}`);
-                      });
-                    } else if ((element as any).webkitRequestFullscreen) {
-                      (element as any).webkitRequestFullscreen();
-                    } else if ((element as any).mozRequestFullScreen) {
-                      (element as any).mozRequestFullScreen();
-                    } else if ((element as any).msRequestFullscreen) {
-                      (element as any).msRequestFullscreen();
-                    }
-                  }
-                }, 100);
-              }
-            }} 
-            className="button w-full"
-          >
-            Iniciar Jogo
-          </button>
-        </div>
-      ) : (
-        <div ref={gameContainerRef} className="game-container relative">
-          <div>
-            <Chessboard 
-              game={game} 
-              setGame={setGame} 
-              gameMode={gameMode}
-            />
-          </div>
-          <div className="info-panel">
-            <PlayerInfo 
-              player1Name={player1Name} 
-              player2Name={gameMode === 'player' ? player2Name : 'Computador'} 
-              game={game}
-            />
-            <GameControls 
-              resetGame={resetGame} 
-              showRules={showRules}
-              setShowRules={setShowRules}
-            />
-            
-            {fullscreenAvailable && (
-              <button 
-                onClick={toggleFullscreen} 
-                className="button w-full mt-4 flex items-center justify-center"
-              >
-                {isFullscreen ? (
+        <div>
+          <div className="flex flex-col md:flex-row gap-6 mb-8">
+            <div className="flex-1">
+              <div className="bg-wood-light p-6 rounded-lg shadow-md mb-6">
+                <h2 className="text-xl font-bold mb-4 text-wood-dark">Iniciar Nova Partida</h2>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-wood-dark mb-1">
+                    Modo de Jogo
+                  </label>
+                  <select
+                    value={gameMode}
+                    onChange={(e) => setGameMode(e.target.value as 'player' | 'computer')}
+                    className="w-full px-3 py-2 border border-wood-medium rounded-md focus:outline-none focus:ring-2 focus:ring-wood-dark"
+                  >
+                    <option value="player">Jogador vs Jogador</option>
+                    <option value="computer">Jogador vs Computador</option>
+                  </select>
+                </div>
+                
+                {gameMode === 'player' ? (
                   <>
-                    <ExitFullscreenIcon /> Sair da Tela Cheia
+                    <PlayerSelect 
+                      label="Jogador 1 (Brancas)" 
+                      value={player1Id} 
+                      onChange={handleSelectPlayer1} 
+                    />
+                    <PlayerSelect 
+                      label="Jogador 2 (Pretas)" 
+                      value={player2Id} 
+                      onChange={handleSelectPlayer2} 
+                    />
                   </>
                 ) : (
-                  <>
-                    <FullscreenIcon /> Entrar em Tela Cheia
-                  </>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-wood-dark mb-1">
+                      Seu Nome
+                    </label>
+                    <input
+                      type="text"
+                      value={player1Name}
+                      onChange={(e) => setPlayer1Name(e.target.value)}
+                      className="w-full px-3 py-2 border border-wood-medium rounded-md focus:outline-none focus:ring-2 focus:ring-wood-dark"
+                    />
+                  </div>
                 )}
-              </button>
+                
+                <div className="mb-4">
+                  <label className="flex items-center text-sm font-medium text-wood-dark">
+                    <input
+                      type="checkbox"
+                      checked={isFullscreen}
+                      onChange={(e) => setIsFullscreen(e.target.checked)}
+                      className="mr-2 h-4 w-4 text-wood-dark focus:ring-wood-dark border-wood-medium rounded"
+                    />
+                    Iniciar em tela cheia
+                  </label>
+                </div>
+                
+                <button
+                  onClick={handleStartGame}
+                  className="w-full bg-wood-dark text-white py-2 px-4 rounded-md hover:bg-wood-medium focus:outline-none focus:ring-2 focus:ring-wood-dark"
+                >
+                  Iniciar Jogo
+                </button>
+              </div>
+              
+              <div className="flex gap-4 mb-6">
+                <button
+                  onClick={() => setShowRegistration(!showRegistration)}
+                  className="flex-1 bg-wood-medium text-white py-2 px-4 rounded-md hover:bg-wood-dark focus:outline-none focus:ring-2 focus:ring-wood-dark"
+                >
+                  {showRegistration ? 'Fechar Registro' : 'Registrar Jogador'}
+                </button>
+                
+                <button
+                  onClick={() => setShowRanking(!showRanking)}
+                  className="flex-1 bg-wood-medium text-white py-2 px-4 rounded-md hover:bg-wood-dark focus:outline-none focus:ring-2 focus:ring-wood-dark"
+                >
+                  {showRanking ? 'Fechar Ranking' : 'Ver Ranking'}
+                </button>
+              </div>
+              
+              {showRegistration && (
+                <PlayerRegistration onPlayerRegistered={handlePlayerRegistered} />
+              )}
+            </div>
+            
+            {showRanking && (
+              <div className="flex-1">
+                <TournamentRanking />
+              </div>
             )}
+          </div>
+          
+          <div className="text-center">
+            <button
+              onClick={() => setShowRules(!showRules)}
+              className="text-wood-dark underline hover:text-wood-medium focus:outline-none"
+            >
+              {showRules ? 'Ocultar Regras' : 'Ver Regras do Xadrez'}
+            </button>
+            
+            {showRules && (
+              <div className="mt-4 text-left bg-wood-lightest p-6 rounded-lg shadow-md">
+                {/* ... existing code ... */}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div ref={gameContainerRef} className={`game-container ${isFullscreen ? 'fullscreen' : ''}`}>
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="md:w-3/4">
+              <Chessboard game={game} setGame={setGame} gameMode={gameMode} />
+              <GameControls 
+                game={game} 
+                setGame={setGame} 
+                onEndGame={handleEndGame} 
+                isFullscreen={isFullscreen}
+                setIsFullscreen={setIsFullscreen}
+                gameContainerRef={gameContainerRef}
+              />
+            </div>
+            <div className="md:w-1/4">
+              <PlayerInfo 
+                player1Name={player1Name} 
+                player2Name={player2Name} 
+                game={game} 
+              />
+            </div>
           </div>
         </div>
       )}

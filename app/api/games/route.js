@@ -1,6 +1,9 @@
 import { saveGame, getGameById, getPlayerGames } from '../../../lib/models';
 import { NextResponse } from 'next/server';
 
+// Configurar para usar o runtime Node.js
+export const runtime = 'nodejs';
+
 export function GET(request) {
   try {
     const { searchParams } = new URL(request.url);

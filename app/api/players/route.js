@@ -1,6 +1,9 @@
 import { createPlayer, getAllPlayers } from '../../../lib/models';
 import { NextResponse } from 'next/server';
 
+// Configurar para usar o runtime Node.js
+export const runtime = 'nodejs';
+
 export function GET() {
   try {
     const players = getAllPlayers();

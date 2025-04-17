@@ -1,9 +1,9 @@
 import { createPlayer, getAllPlayers } from '../../../lib/models';
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export function GET() {
   try {
-    const players = await getAllPlayers();
+    const players = getAllPlayers();
     return NextResponse.json(players);
   } catch (error) {
     console.error('Erro ao buscar jogadores:', error);
@@ -25,7 +25,7 @@ export async function POST(request) {
       );
     }
     
-    const player = await createPlayer(data);
+    const player = createPlayer(data);
     return NextResponse.json(player, { status: 201 });
   } catch (error) {
     console.error('Erro ao criar jogador:', error);

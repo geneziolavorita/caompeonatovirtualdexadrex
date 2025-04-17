@@ -13,8 +13,7 @@
     "react": "^18",
     "react-dom": "^18",
     "chess.js": "^1.0.0-beta.6",
-    "mongodb": "^5.2.0",
-    "mongoose": "^7.0.3"
+    "better-sqlite3": "^9.4.0"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -27,4 +26,4 @@
     "tailwindcss": "^3.3.0",
     "typescript": "^5"
   }
-} 
+}

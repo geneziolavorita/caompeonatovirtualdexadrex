@@ -1,9 +1,9 @@
 import { getTournamentRanking } from '../../../lib/models';
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export function GET() {
   try {
-    const ranking = await getTournamentRanking();
+    const ranking = getTournamentRanking();
     return NextResponse.json(ranking);
   } catch (error) {
     console.error('Erro ao buscar ranking:', error);

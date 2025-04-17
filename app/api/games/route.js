@@ -1,13 +1,13 @@
 import { saveGame, getGameById, getPlayerGames } from '../../../lib/models';
 import { NextResponse } from 'next/server';
 
-export async function GET(request) {
+export function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const playerId = searchParams.get('playerId');
     
     if (playerId) {
-      const games = await getPlayerGames(playerId);
+      const games = getPlayerGames(playerId);
       return NextResponse.json(games);
     }
     
@@ -36,7 +36,7 @@ export async function POST(request) {
       );
     }
     
-    const game = await saveGame(data);
+    const game = saveGame(data);
     return NextResponse.json(game, { status: 201 });
   } catch (error) {
     console.error('Erro ao salvar partida:', error);

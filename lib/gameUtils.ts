@@ -2,8 +2,8 @@ import { Chess } from 'chess.js';
 
 export interface GameResult {
   result: 'white' | 'black' | 'draw';
-  whitePlayer: string;
-  blackPlayer: string;
+  whitePlayer: number;
+  blackPlayer: number;
   whitePlayerName: string;
   blackPlayerName: string;
   pgn: string;
@@ -33,8 +33,8 @@ export async function saveGameResult(game: Chess, whitePlayer: string, blackPlay
     // Preparar dados para salvar
     const gameResult: GameResult = {
       result,
-      whitePlayer,
-      blackPlayer,
+      whitePlayer: parseInt(whitePlayer),
+      blackPlayer: parseInt(blackPlayer),
       whitePlayerName,
       blackPlayerName,
       pgn: game.toString(),
@@ -43,7 +43,7 @@ export async function saveGameResult(game: Chess, whitePlayer: string, blackPlay
       endTime: new Date()
     };
     
-    // Salvar no MongoDB
+    // Salvar no banco de dados
     const response = await fetch('/api/games', {
       method: 'POST',
       headers: {

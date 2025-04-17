@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 interface Player {
-  _id: string;
+  id: number;
   name: string;
 }
 
@@ -57,16 +57,16 @@ export default function PlayerSelect({ label, value, onChange }: PlayerSelectPro
       <select
         value={value}
         onChange={(e) => {
-          const player = players.find(p => p._id === e.target.value);
+          const player = players.find(p => p.id.toString() === e.target.value);
           if (player) {
-            onChange(player._id, player.name);
+            onChange(player.id.toString(), player.name);
           }
         }}
         className="w-full px-3 py-2 border border-wood-medium rounded-md focus:outline-none focus:ring-2 focus:ring-wood-dark"
       >
         <option value="">Selecione um jogador</option>
         {players.map((player) => (
-          <option key={player._id} value={player._id}>
+          <option key={player.id} value={player.id.toString()}>
             {player.name}
           </option>
         ))}

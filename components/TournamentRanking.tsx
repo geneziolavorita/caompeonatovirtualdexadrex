@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 interface Player {
-  _id: string;
+  id: number;
   name: string;
   points: number;
   wins: number;
@@ -67,7 +67,7 @@ export default function TournamentRanking() {
           </thead>
           <tbody>
             {players.map((player, index) => (
-              <tr key={player._id} className={index % 2 === 0 ? 'bg-wood-lightest' : 'bg-white'}>
+              <tr key={player.id} className={index % 2 === 0 ? 'bg-wood-lightest' : 'bg-white'}>
                 <td className="py-2 px-4 border-b border-wood-light">{index + 1}</td>
                 <td className="py-2 px-4 border-b border-wood-light font-medium">{player.name}</td>
                 <td className="py-2 px-4 border-b border-wood-light text-center font-bold">{player.points}</td>

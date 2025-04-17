@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Chess } from 'chess.js';
 
 // Carregar componentes de forma dinâmica sem SSR
@@ -25,13 +25,40 @@ export default function Home() {
   const [gameStartTime, setGameStartTime] = useState(null);
   const gameContainerRef = useRef(null);
   const [players, setPlayers] = useState([]);
+  const [registrationCompleted, setRegistrationCompleted] = useState(false);
+
+  // Carregar jogadores ao iniciar
+  useEffect(() => {
+    const fetchPlayers = async () => {
+      try {
+        const response = await fetch('/api/players', {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Jogadores carregados:', data);
+          setPlayers(data);
+        } else {
+          console.error('Erro ao carregar jogadores:', response.status);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar jogadores:', err);
+      }
+    };
+    
+    fetchPlayers();
+  }, [view, registrationCompleted]);
 
   const handleSelectPlayer1 = (id, name) => {
+    console.log(`Selecionando jogador 1: ID=${id}, Nome=${name}`);
     setPlayer1Id(id);
     setPlayer1Name(name);
   };
 
   const handleSelectPlayer2 = (id, name) => {
+    console.log(`Selecionando jogador 2: ID=${id}, Nome=${name}`);
     setPlayer2Id(id);
     setPlayer2Name(name);
   };
@@ -53,13 +80,36 @@ export default function Home() {
   };
 
   const handlePlayerRegistered = (playerData) => {
-    // Atualizar lista de jogadores localmente para refletir a nova adição
-    setPlayers(prevPlayers => [...prevPlayers, playerData]);
+    console.log('Jogador registrado com sucesso:', playerData);
+    
+    // Atualizar lista de jogadores localmente
+    setPlayers(prevPlayers => {
+      // Verificar se o jogador já existe
+      const exists = prevPlayers.some(p => 
+        p.id === playerData.id || 
+        p.name.toLowerCase() === playerData.name.toLowerCase()
+      );
+      
+      // Só adicionar se não existir
+      if (!exists) {
+        console.log('Adicionando novo jogador à lista:', playerData);
+        return [...prevPlayers, playerData];
+      }
+      
+      console.log('Jogador já existe na lista');
+      return prevPlayers;
+    });
+    
+    // Marcar o registro como concluído para acionar efeito de atualização
+    setRegistrationCompleted(prev => !prev);
+    
+    // Exibir mensagem de sucesso
+    alert(`Jogador "${playerData.name}" registrado com sucesso!`);
     
     // Redirecionar para ranking após alguns segundos
     setTimeout(() => {
       setView('ranking');
-    }, 2000);
+    }, 1500);
   };
 
   return (
@@ -78,19 +128,19 @@ export default function Home() {
       <div className="flex space-x-4 justify-center mb-6">
         <button 
           onClick={() => setView('home')}
-          className="bg-wood-dark text-white px-4 py-2 rounded hover:bg-wood-medium"
+          className={`px-4 py-2 rounded ${view === 'home' ? 'bg-wood-dark text-white' : 'bg-wood-light text-wood-dark'} hover:bg-wood-medium`}
         >
           Início
         </button>
         <button 
           onClick={() => setView('ranking')}
-          className="bg-wood-dark text-white px-4 py-2 rounded hover:bg-wood-medium"
+          className={`px-4 py-2 rounded ${view === 'ranking' ? 'bg-wood-dark text-white' : 'bg-wood-light text-wood-dark'} hover:bg-wood-medium`}
         >
           Ver Ranking
         </button>
         <button 
           onClick={() => setView('register')}
-          className="bg-wood-dark text-white px-4 py-2 rounded hover:bg-wood-medium"
+          className={`px-4 py-2 rounded ${view === 'register' ? 'bg-wood-dark text-white' : 'bg-wood-light text-wood-dark'} hover:bg-wood-medium`}
         >
           Registrar Jogador
         </button>

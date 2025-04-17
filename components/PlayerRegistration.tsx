@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface PlayerRegistrationProps {
   onPlayerRegistered: (player: { id: string; name: string; email?: string }) => void;
@@ -13,6 +13,36 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+
+  // Verificar a conectividade do servidor ao carregar o componente
+  useEffect(() => {
+    const checkServerStatus = async () => {
+      try {
+        const response = await fetch('/api/status', { 
+          method: 'GET',
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        
+        if (response.ok) {
+          console.log('Servidor está online');
+          setServerStatus('online');
+          setIsOfflineMode(false);
+        } else {
+          console.log('Servidor respondeu com erro:', response.status);
+          setServerStatus('offline');
+          setIsOfflineMode(true);
+        }
+      } catch (err) {
+        console.error('Erro ao verificar status do servidor:', err);
+        setServerStatus('offline');
+        setIsOfflineMode(true);
+      }
+    };
+
+    checkServerStatus();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +66,7 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache'
             },
             body: JSON.stringify({ name, email }),
           });
@@ -51,30 +82,33 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
             setEmail('');
             return;
           } else {
-            throw new Error(data.error || data.details || `Falha no registro (Status ${response.status})`);
+            const errorMsg = data.error || data.details || `Falha no registro (Status ${response.status})`;
+            console.error('Erro retornado pelo servidor:', errorMsg);
+            throw new Error(errorMsg);
           }
         } catch (err) {
           console.error('Erro na comunicação com servidor, mudando para modo offline:', err);
           setIsOfflineMode(true);
-          // Continua para o modo offline abaixo
+          throw err; // Propagar o erro para o catch externo
         }
+      } else {
+        // Modo offline - gera um ID local e simula o registro
+        console.log('Usando modo offline para registro');
+        const mockPlayer = {
+          id: `local_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+          name,
+          email: email || undefined,
+          createdAt: new Date().toISOString()
+        };
+        
+        setSuccess('Jogador registrado localmente (modo offline). Os dados serão sincronizados quando a conexão for restaurada.');
+        console.log('Jogador registrado localmente:', mockPlayer);
+        
+        // Importante: sempre chamar onPlayerRegistered para atualizar a UI
+        onPlayerRegistered(mockPlayer);
+        setName('');
+        setEmail('');
       }
-      
-      // Modo offline - gera um ID local e simula o registro
-      console.log('Usando modo offline para registro');
-      const mockPlayer = {
-        id: `local_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        name,
-        email: email || undefined,
-        createdAt: new Date().toISOString()
-      };
-      
-      setSuccess('Jogador registrado localmente (modo offline). Os dados serão sincronizados quando a conexão for restaurada.');
-      console.log('Jogador registrado localmente:', mockPlayer);
-      onPlayerRegistered(mockPlayer);
-      setName('');
-      setEmail('');
-      
     } catch (error) {
       console.error('Erro durante o registro do jogador:', error);
       
@@ -99,6 +133,12 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
       <h2 className="text-xl font-bold mb-4 text-wood-dark text-center">
         Registrar Jogador {isOfflineMode && "(Modo Offline)"}
       </h2>
+      
+      {serverStatus === 'checking' && (
+        <div className="mb-4 text-blue-500 text-sm bg-blue-50 p-2 rounded border border-blue-200">
+          Verificando conexão com o servidor...
+        </div>
+      )}
       
       <form onSubmit={handleSubmit}>
         <div className="mb-4">

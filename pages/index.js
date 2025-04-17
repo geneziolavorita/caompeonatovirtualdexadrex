@@ -24,6 +24,7 @@ export default function Home() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [gameStartTime, setGameStartTime] = useState(null);
   const gameContainerRef = useRef(null);
+  const [players, setPlayers] = useState([]);
 
   const handleSelectPlayer1 = (id, name) => {
     setPlayer1Id(id);
@@ -49,6 +50,16 @@ export default function Home() {
   const handleEndGame = () => {
     setGameStarted(false);
     setGameStartTime(null);
+  };
+
+  const handlePlayerRegistered = (playerData) => {
+    // Atualizar lista de jogadores localmente para refletir a nova adição
+    setPlayers(prevPlayers => [...prevPlayers, playerData]);
+    
+    // Redirecionar para ranking após alguns segundos
+    setTimeout(() => {
+      setView('ranking');
+    }, 2000);
   };
 
   return (
@@ -191,7 +202,7 @@ export default function Home() {
       )}
       
       {view === 'register' && (
-        <PlayerRegistrationComponent onPlayerRegistered={() => setView('ranking')} />
+        <PlayerRegistrationComponent onPlayerRegistered={handlePlayerRegistered} />
       )}
     </div>
   );

@@ -1,3 +1,5 @@
+'use client';
+
 import { Chess } from 'chess.js'
 
 interface PlayerInfoProps {

@@ -2,13 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   experimental: {
-    serverComponentsExternalPackages: ['fs', 'path']
+    serverActions: false
   },
   webpack: (config) => {
-    config.resolve.fallback = {
-      fs: false,
-      path: false,
-    };
     return config;
   }
 };

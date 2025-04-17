@@ -1,3 +1,5 @@
+'use client';
+
 import { Chess } from 'chess.js';
 import { useEffect, useRef, RefObject, Dispatch, SetStateAction } from 'react';
 

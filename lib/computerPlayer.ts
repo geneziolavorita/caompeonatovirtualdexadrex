@@ -1,3 +1,5 @@
+'use client';
+
 import { Chess, Piece, PieceType } from 'chess.js'
 
 interface PieceValues {

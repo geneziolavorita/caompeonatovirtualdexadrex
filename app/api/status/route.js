@@ -1,36 +1,13 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 
 // Configurar para usar o runtime Node.js
 export const runtime = 'nodejs';
 
-// Verifica se os arquivos de dados existem
-function checkDataFiles() {
-  const dataDir = path.join(process.cwd(), 'data');
-  const playersFilePath = path.join(dataDir, 'players.json');
-  const gamesFilePath = path.join(dataDir, 'games.json');
-  
-  const dirExists = fs.existsSync(dataDir);
-  const playersFileExists = fs.existsSync(playersFilePath);
-  const gamesFileExists = fs.existsSync(gamesFilePath);
-  
-  return {
-    dataDirectoryExists: dirExists,
-    playersFileExists,
-    gamesFileExists,
-    dataDirectoryPath: dataDir
-  };
-}
-
 export async function GET() {
   try {
-    const dataStatus = checkDataFiles();
-    
     return NextResponse.json({
       status: 'online',
-      timestamp: new Date().toISOString(),
-      dataFiles: dataStatus
+      timestamp: new Date().toISOString()
     }, { 
       headers: {
         'Access-Control-Allow-Origin': '*',

@@ -1,4 +1,7 @@
+'use client';
+
 import { useEffect, useState } from 'react';
+import { mockPlayers } from '@/lib/mock-data';
 
 interface Player {
   id: number;
@@ -19,14 +22,23 @@ export default function PlayerSelect({ label, value, onChange }: PlayerSelectPro
   useEffect(() => {
     const fetchPlayers = async () => {
       try {
-        const response = await fetch('/api/players');
-        
-        if (!response.ok) {
-          throw new Error('Falha ao buscar jogadores');
+        // Primeiro, tente buscar do servidor
+        try {
+          const response = await fetch('/api/players');
+          
+          if (response.ok) {
+            const data = await response.json();
+            setPlayers(data);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.log('Erro ao buscar do servidor, usando dados mock', err);
         }
-        
-        const data = await response.json();
-        setPlayers(data);
+
+        // Se falhar, use os dados mock
+        console.log('Usando dados mock para jogadores');
+        setPlayers(mockPlayers);
       } catch (err: any) {
         setError(err.message || 'Ocorreu um erro ao carregar os jogadores');
       } finally {

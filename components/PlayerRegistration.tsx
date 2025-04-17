@@ -1,110 +1,117 @@
 'use client';
 
-import { useState } from 'react';
-import { mockPlayers } from '@/lib/mock-data';
+import React, { useState } from 'react';
 
 interface PlayerRegistrationProps {
-  onPlayerRegistered: () => void;
+  onPlayerRegistered: (player: { id: string; name: string; email?: string }) => void;
 }
 
 export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistrationProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    
+    if (!name.trim()) {
+      setError('Nome é obrigatório.');
+      return;
+    }
+    
     setError('');
-    setSuccess('');
+    setLoading(true);
+    console.log(`Tentando registrar jogador: ${name}${email ? `, email: ${email}` : ''}`);
 
     try {
-      // Tente enviar para o servidor
-      try {
-        const response = await fetch('/api/players', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ name, email }),
-        });
+      console.log(`Enviando requisição para /api/players com dados:`, { name, email });
+      const response = await fetch('/api/players', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email }),
+      });
+      
+      console.log(`Resposta recebida com status: ${response.status}`);
+      const data = await response.json();
+      console.log('Dados recebidos:', data);
 
-        const data = await response.json();
-
-        if (response.ok) {
-          setSuccess('Jogador registrado com sucesso!');
-          setName('');
-          setEmail('');
-          
-          if (onPlayerRegistered) {
-            onPlayerRegistered();
-          }
-          return;
-        } else {
-          throw new Error(data.error || 'Erro ao registrar jogador');
-        }
-      } catch (err: any) {
-        console.log('Erro ao se comunicar com o servidor, usando modo offline', err);
-        
-        // Modo fallback - simular registro
-        setSuccess('Jogador registrado localmente (modo offline)');
-        setName('');
-        setEmail('');
-        
-        if (onPlayerRegistered) {
-          onPlayerRegistered();
-        }
+      if (!response.ok) {
+        throw new Error(data.error || `Falha no registro (Status ${response.status})`);
       }
-    } catch (err: any) {
-      setError(err.message || 'Ocorreu um erro ao registrar o jogador');
+
+      console.log('Jogador registrado com sucesso:', data);
+      onPlayerRegistered(data);
+      setName('');
+      setEmail('');
+    } catch (error) {
+      console.error('Erro durante o registro do jogador:', error);
+      
+      if (error instanceof Error) {
+        setError(`Erro: ${error.message}`);
+      } else {
+        setError('Ocorreu um erro desconhecido durante o registro.');
+      }
+      
+      // Simulação local para testes se necessário (descomente se precisar testar sem backend)
+      /* 
+      console.log('Simulando registro local devido a erro de servidor');
+      const mockPlayer = {
+        id: Date.now().toString(),
+        name,
+        email,
+        createdAt: new Date().toISOString(),
+      };
+      onPlayerRegistered(mockPlayer);
+      setName('');
+      setEmail('');
+      */
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
     <div className="bg-wood-light p-6 rounded-lg shadow-md">
-      <h2 className="text-xl font-bold mb-4 text-wood-dark">Registrar Novo Jogador</h2>
-      
-      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
-      {success && <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">{success}</div>}
+      <h2 className="text-xl font-bold mb-4 text-wood-dark text-center">
+        Registrar Jogador
+      </h2>
       
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label htmlFor="name" className="block text-sm font-medium text-wood-dark mb-1">
-            Nome *
-          </label>
           <input
-            type="text"
-            id="name"
+            placeholder="Nome"
+            className="w-full px-3 py-2 border border-wood-medium rounded-md focus:outline-none focus:ring-2 focus:ring-wood-dark"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 border border-wood-medium rounded-md focus:outline-none focus:ring-2 focus:ring-wood-dark"
             required
           />
         </div>
         
         <div className="mb-4">
-          <label htmlFor="email" className="block text-sm font-medium text-wood-dark mb-1">
-            Email (opcional)
-          </label>
           <input
+            placeholder="Email (opcional)"
+            className="w-full px-3 py-2 border border-wood-medium rounded-md focus:outline-none focus:ring-2 focus:ring-wood-dark"
             type="email"
-            id="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-2 border border-wood-medium rounded-md focus:outline-none focus:ring-2 focus:ring-wood-dark"
           />
         </div>
         
+        {error && (
+          <div className="mb-4 text-red-500 text-sm">
+            {error}
+          </div>
+        )}
+        
         <button
           type="submit"
-          disabled={isSubmitting || !name}
           className="w-full bg-wood-dark text-white py-2 px-4 rounded-md hover:bg-wood-medium focus:outline-none focus:ring-2 focus:ring-wood-dark disabled:opacity-50"
+          disabled={loading}
         >
-          {isSubmitting ? 'Registrando...' : 'Registrar Jogador'}
+          {loading ? 'Registrando...' : 'Registrar'}
         </button>
       </form>
     </div>

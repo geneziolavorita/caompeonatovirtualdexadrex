@@ -3,17 +3,7 @@ import { NextResponse } from 'next/server';
 
 // Configurar para usar o runtime Node.js
 export const runtime = 'nodejs';
-
-// Tratamento de CORS para permitir requisições no ambiente de desenvolvimento
-export async function OPTIONS() {
-  return NextResponse.json({}, { 
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-    }
-  });
-}
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
@@ -21,6 +11,8 @@ export async function GET() {
     return NextResponse.json(ranking, { 
       headers: {
         'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         'Content-Type': 'application/json'
       }
     });
@@ -32,6 +24,8 @@ export async function GET() {
         status: 500,
         headers: {
           'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
           'Content-Type': 'application/json'
         }
       }

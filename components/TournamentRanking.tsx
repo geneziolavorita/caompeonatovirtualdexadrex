@@ -21,31 +21,45 @@ export default function TournamentRanking() {
   useEffect(() => {
     const fetchRanking = async () => {
       try {
+        console.log('Buscando ranking...');
         // Primeiro, tente buscar do servidor
         try {
-          const response = await fetch('/api/ranking');
+          const response = await fetch('/api/ranking', {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache'
+            }
+          });
+          
+          console.log('Resposta da API:', response.status);
           
           if (response.ok) {
             const data = await response.json();
+            console.log('Dados recebidos:', data);
             setPlayers(data);
             setLoading(false);
             return;
+          } else {
+            const errorText = await response.text();
+            console.error('Erro na resposta da API:', response.status, errorText);
+            throw new Error(`Erro do servidor: ${response.status}`);
           }
         } catch (err) {
-          console.log('Erro ao buscar ranking do servidor, usando dados mock', err);
+          console.error('Erro ao buscar ranking do servidor, usando dados mock', err);
+          // Se falhar, use os dados mock
+          console.log('Usando dados mock para ranking');
+          // Ordenar dados mock por pontos e vitórias
+          const sortedPlayers = [...mockPlayers].sort((a, b) => {
+            if (a.points !== b.points) {
+              return b.points - a.points;
+            }
+            return b.wins - a.wins;
+          });
+          setPlayers(sortedPlayers);
         }
-
-        // Se falhar, use os dados mock
-        console.log('Usando dados mock para ranking');
-        // Ordenar dados mock por pontos e vitórias
-        const sortedPlayers = [...mockPlayers].sort((a, b) => {
-          if (a.points !== b.points) {
-            return b.points - a.points;
-          }
-          return b.wins - a.wins;
-        });
-        setPlayers(sortedPlayers);
       } catch (err: any) {
+        console.error('Erro ao carregar ranking:', err);
         setError(err.message || 'Ocorreu um erro ao carregar o ranking');
       } finally {
         setLoading(false);
@@ -60,7 +74,12 @@ export default function TournamentRanking() {
   }
 
   if (error) {
-    return <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>;
+    return (
+      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        <p>{error}</p>
+        <p>Usando dados de exemplo para demonstração.</p>
+      </div>
+    );
   }
 
   if (players.length === 0) {

@@ -99,8 +99,18 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
         
         setName('');
         setEmail('');
+        
+        // Atualizar a página atual em vez de redirecionar
         router.refresh();
-        router.push('/players');
+        
+        // Verificar se estamos na tela inicial antes de redirecionar
+        if (window.location.pathname === '/') {
+          // Mostrar toast de sucesso sem redirecionar
+          toast.success('Jogador disponível para seleção na lista');
+        } else {
+          // Redirecionar para a página inicial
+          window.location.href = '/';
+        }
       } else {
         toast.error(result.message || 'Erro ao cadastrar jogador');
       }

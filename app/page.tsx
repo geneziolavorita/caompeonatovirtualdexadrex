@@ -240,6 +240,13 @@ export default function Home() {
                 >
                   {showRanking ? 'Fechar Ranking' : 'Ver Ranking'}
                 </button>
+
+                <a
+                  href="/players"
+                  className="flex-1 bg-wood-medium text-white py-2 px-4 rounded-md hover:bg-wood-dark focus:outline-none focus:ring-2 focus:ring-wood-dark text-center"
+                >
+                  Lista de Jogadores
+                </a>
               </div>
               
               {showRegistration && (

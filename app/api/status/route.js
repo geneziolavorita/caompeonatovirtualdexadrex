@@ -11,6 +11,68 @@ const PLAYERS_FILE_PATH = path.join(process.cwd(), 'data/players.json');
 const GAMES_FILE_PATH = path.join(process.cwd(), 'data/games.json');
 const DATA_DIR = path.join(process.cwd(), 'data');
 
+// Função auxiliar para verificar e corrigir arquivos JSON
+function verifyAndFixJsonFile(filePath) {
+  try {
+    // Verificar se o arquivo existe
+    if (!fs.existsSync(filePath)) {
+      console.log(`Arquivo ${filePath} não encontrado. Criando...`);
+      fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf8');
+      return {
+        exists: true,
+        valid: true,
+        data: [],
+        message: "Arquivo criado com sucesso"
+      };
+    }
+
+    // Ler o conteúdo do arquivo
+    const content = fs.readFileSync(filePath, 'utf8');
+    
+    // Verificar se o conteúdo está vazio ou é inválido
+    if (!content || content.trim() === '') {
+      console.log(`Arquivo ${filePath} está vazio. Corrigindo...`);
+      fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf8');
+      return {
+        exists: true,
+        valid: true,
+        data: [],
+        message: "Arquivo vazio corrigido"
+      };
+    }
+
+    // Tentar fazer o parse do JSON
+    try {
+      const data = JSON.parse(content);
+      return {
+        exists: true,
+        valid: true,
+        data,
+        count: Array.isArray(data) ? data.length : null,
+        message: "Arquivo válido"
+      };
+    } catch (parseError) {
+      console.error(`Erro ao fazer parse do arquivo ${filePath}: ${parseError.message}`);
+      
+      // Corrigir o arquivo com um array vazio
+      fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf8');
+      return {
+        exists: true,
+        valid: false,
+        data: [],
+        message: `Arquivo inválido corrigido: ${parseError.message}`
+      };
+    }
+  } catch (error) {
+    console.error(`Erro ao verificar arquivo ${filePath}: ${error.message}`);
+    return {
+      exists: false,
+      valid: false,
+      message: `Erro ao acessar o arquivo: ${error.message}`
+    };
+  }
+}
+
 // Função auxiliar para verificar permissões de diretório
 function checkDirectoryPermissions(dirPath) {
   try {
@@ -74,43 +136,9 @@ export async function GET() {
     // Verificar permissões do diretório de dados
     const dirPermissions = checkDirectoryPermissions(DATA_DIR);
     
-    // Verificar existência dos arquivos de dados
-    const filesStatus = {
-      playersFileExists: fs.existsSync(PLAYERS_FILE_PATH),
-      gamesFileExists: fs.existsSync(GAMES_FILE_PATH)
-    };
-    
-    // Tentar ler os arquivos de dados para testar acesso
-    let playersFileAccess = false;
-    let gamesFileAccess = false;
-    let playersCount = 0;
-    let gamesCount = 0;
-    
-    try {
-      if (filesStatus.playersFileExists) {
-        const playersData = fs.readFileSync(PLAYERS_FILE_PATH, 'utf8');
-        if (playersData && playersData.trim()) {
-          const players = JSON.parse(playersData);
-          playersCount = Array.isArray(players) ? players.length : 0;
-          playersFileAccess = true;
-        }
-      }
-    } catch (err) {
-      console.error('Erro ao ler arquivo de jogadores:', err);
-    }
-    
-    try {
-      if (filesStatus.gamesFileExists) {
-        const gamesData = fs.readFileSync(GAMES_FILE_PATH, 'utf8');
-        if (gamesData && gamesData.trim()) {
-          const games = JSON.parse(gamesData);
-          gamesCount = Array.isArray(games) ? games.length : 0;
-          gamesFileAccess = true;
-        }
-      }
-    } catch (err) {
-      console.error('Erro ao ler arquivo de jogos:', err);
-    }
+    // Verificar e corrigir os arquivos JSON
+    const playersFileStatus = verifyAndFixJsonFile(PLAYERS_FILE_PATH);
+    const gamesFileStatus = verifyAndFixJsonFile(GAMES_FILE_PATH);
     
     // Informações de sistema
     const systemInfo = {
@@ -163,11 +191,8 @@ export async function GET() {
         ...dirPermissions
       },
       files: {
-        ...filesStatus,
-        playersFileAccess,
-        gamesFileAccess,
-        playersCount,
-        gamesCount
+        players: playersFileStatus,
+        games: gamesFileStatus
       }
     });
   } catch (error) {

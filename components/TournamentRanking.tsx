@@ -3,20 +3,43 @@
 import { useEffect, useState } from 'react';
 import { mockPlayers } from '@/lib/mock-data';
 
+// Atualizar interface para corresponder aos dados do MongoDB
 interface Player {
-  id: number;
-  name: string;
-  points: number;
-  wins: number;
-  losses: number;
-  draws: number;
-  gamesPlayed: number;
+  _id?: string;
+  id?: number | string;
+  nome?: string;
+  name?: string;
+  pontuacao?: number;
+  points?: number;
+  vitorias?: number;
+  wins?: number;
+  derrotas?: number;
+  losses?: number;
+  empates?: number;
+  draws?: number;
+  jogos?: number;
+  gamesPlayed?: number;
+  posicao?: number;
 }
 
 export default function TournamentRanking() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Função para normalizar campos (compatibilidade entre MongoDB e dados mock)
+  const normalizePlayerData = (player: Player): Player => {
+    return {
+      ...player,
+      id: player._id || player.id,
+      name: player.nome || player.name,
+      points: player.pontuacao || player.points || 0,
+      wins: player.vitorias || player.wins || 0,
+      losses: player.derrotas || player.losses || 0,
+      draws: player.empates || player.draws || 0,
+      gamesPlayed: player.jogos || player.gamesPlayed || 0
+    };
+  };
 
   useEffect(() => {
     const fetchRanking = async () => {
@@ -37,7 +60,14 @@ export default function TournamentRanking() {
           if (response.ok) {
             const data = await response.json();
             console.log('Dados recebidos:', data);
-            setPlayers(data);
+            
+            if (data.success && Array.isArray(data.data)) {
+              const normalizedPlayers = data.data.map(normalizePlayerData);
+              setPlayers(normalizedPlayers);
+            } else {
+              throw new Error('Formato de dados inválido');
+            }
+            
             setLoading(false);
             return;
           } else {
@@ -105,14 +135,14 @@ export default function TournamentRanking() {
           </thead>
           <tbody>
             {players.map((player, index) => (
-              <tr key={player.id} className={index % 2 === 0 ? 'bg-wood-lightest' : 'bg-white'}>
-                <td className="py-2 px-4 border-b border-wood-light">{index + 1}</td>
-                <td className="py-2 px-4 border-b border-wood-light font-medium">{player.name}</td>
-                <td className="py-2 px-4 border-b border-wood-light text-center font-bold">{player.points}</td>
-                <td className="py-2 px-4 border-b border-wood-light text-center">{player.wins}</td>
-                <td className="py-2 px-4 border-b border-wood-light text-center">{player.draws}</td>
-                <td className="py-2 px-4 border-b border-wood-light text-center">{player.losses}</td>
-                <td className="py-2 px-4 border-b border-wood-light text-center">{player.gamesPlayed}</td>
+              <tr key={player._id || player.id} className={index % 2 === 0 ? 'bg-wood-lightest' : 'bg-white'}>
+                <td className="py-2 px-4 border-b border-wood-light">{player.posicao || index + 1}</td>
+                <td className="py-2 px-4 border-b border-wood-light font-medium">{player.nome || player.name}</td>
+                <td className="py-2 px-4 border-b border-wood-light text-center font-bold">{player.pontuacao || player.points || 0}</td>
+                <td className="py-2 px-4 border-b border-wood-light text-center">{player.vitorias || player.wins || 0}</td>
+                <td className="py-2 px-4 border-b border-wood-light text-center">{player.empates || player.draws || 0}</td>
+                <td className="py-2 px-4 border-b border-wood-light text-center">{player.derrotas || player.losses || 0}</td>
+                <td className="py-2 px-4 border-b border-wood-light text-center">{player.jogos || player.gamesPlayed || 0}</td>
               </tr>
             ))}
           </tbody>

@@ -3,9 +3,12 @@
 import { useEffect, useState } from 'react';
 import { mockPlayers } from '@/lib/mock-data';
 
+// Atualizar interface do jogador para incluir campos do MongoDB
 interface Player {
-  id: number | string;
-  name: string;
+  _id?: string; // MongoDB usa _id
+  id?: number | string;
+  nome?: string; // Campo em português para MongoDB
+  name?: string; // Campo alternativo em inglês
 }
 
 interface PlayerSelectProps {
@@ -49,22 +52,12 @@ export default function PlayerSelect({ label, value, onChange }: PlayerSelectPro
           console.log(`PlayerSelect (${label}): Resposta da API:`, response.status);
           
           if (response.ok) {
-            const responseText = await response.text();
-            console.log(`PlayerSelect (${label}): Resposta bruta:`, responseText.substring(0, 100));
-            
-            let data;
-            try {
-              data = JSON.parse(responseText);
-            } catch (e) {
-              console.error(`PlayerSelect (${label}): Erro ao fazer parse do JSON:`, e);
-              throw new Error('Resposta inválida do servidor');
-            }
-            
+            const data = await response.json();
             console.log(`PlayerSelect (${label}): Dados recebidos:`, data);
             
-            if (Array.isArray(data) && data.length > 0) {
-              console.log(`PlayerSelect (${label}): ${data.length} jogadores encontrados`);
-              setPlayers(data);
+            if (data.success && data.data && Array.isArray(data.data)) {
+              console.log(`PlayerSelect (${label}): ${data.data.length} jogadores encontrados`);
+              setPlayers(data.data);
               setLoading(false);
               return;
             } else {
@@ -97,6 +90,16 @@ export default function PlayerSelect({ label, value, onChange }: PlayerSelectPro
     return () => clearInterval(interval);
   }, [label, refreshCounter]);
 
+  // Função para obter o ID do jogador (compatível com MongoDB que usa _id)
+  const getPlayerId = (player: Player): string => {
+    return (player._id || player.id || '').toString();
+  };
+
+  // Função para obter o nome do jogador (compatível com campos nome e name)
+  const getPlayerName = (player: Player): string => {
+    return player.nome || player.name || 'Jogador sem nome';
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const playerId = e.target.value;
     if (!playerId) {
@@ -104,10 +107,11 @@ export default function PlayerSelect({ label, value, onChange }: PlayerSelectPro
       return;
     }
     
-    const player = players.find(p => p.id.toString() === playerId);
+    const player = players.find(p => getPlayerId(p) === playerId);
     if (player) {
-      console.log(`PlayerSelect (${label}): Selecionado jogador ID=${playerId}, Nome=${player.name}`);
-      onChange(playerId, player.name);
+      const playerName = getPlayerName(player);
+      console.log(`PlayerSelect (${label}): Selecionado jogador ID=${playerId}, Nome=${playerName}`);
+      onChange(playerId, playerName);
     } else {
       console.error(`PlayerSelect (${label}): Jogador com ID ${playerId} não encontrado na lista`);
     }
@@ -183,8 +187,8 @@ export default function PlayerSelect({ label, value, onChange }: PlayerSelectPro
         >
           <option value="">Selecione um jogador</option>
           {players.map((player) => (
-            <option key={player.id} value={player.id.toString()}>
-              {player.name}
+            <option key={getPlayerId(player)} value={getPlayerId(player)}>
+              {getPlayerName(player)}
             </option>
           ))}
         </select>

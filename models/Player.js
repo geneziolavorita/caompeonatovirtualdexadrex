@@ -41,12 +41,27 @@ const PlayerSchema = new mongoose.Schema({
     createdAt: 'dataCriacao', // Custom createdAt field name
     updatedAt: 'dataAtualizacao' // Custom updatedAt field name
   },
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  toJSON: { 
+    virtuals: true,
+    transform: function(doc, ret) {
+      // Converter _id para string e manter como id também
+      ret.id = ret._id.toString();
+      return ret;
+    }
+  },
+  toObject: { 
+    virtuals: true,
+    transform: function(doc, ret) {
+      // Converter _id para string e manter como id também
+      ret.id = ret._id.toString();
+      return ret;
+    }
+  }
 });
 
 // Middleware para garantir que name e nome estejam sincronizados
 PlayerSchema.pre('save', function(next) {
+  // Se apenas um dos campos estiver definido, copie para o outro
   if (this.nome && !this.name) {
     this.name = this.nome;
   } else if (this.name && !this.nome) {

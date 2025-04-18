@@ -10,9 +10,11 @@ const PLAYERS_FILE_PATH = path.join(process.cwd(), 'data/players.json');
 // Função auxiliar para ler o arquivo de jogadores
 function readPlayersFile() {
   try {
+    console.log(`Lendo arquivo de jogadores em: ${PLAYERS_FILE_PATH}`);
+    
     // Verifica se o arquivo existe
     if (!fs.existsSync(PLAYERS_FILE_PATH)) {
-      console.log(`Arquivo de jogadores não encontrado em ${PLAYERS_FILE_PATH}. Criando arquivo vazio.`);
+      console.log(`Arquivo de jogadores não encontrado. Criando arquivo vazio.`);
       // Certifique-se de que o diretório data existe
       const dataDir = path.join(process.cwd(), 'data');
       if (!fs.existsSync(dataDir)) {
@@ -25,31 +27,47 @@ function readPlayersFile() {
     
     // Lê o arquivo
     const fileContent = fs.readFileSync(PLAYERS_FILE_PATH, 'utf8');
+    console.log(`Conteúdo do arquivo: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`);
     
     // Trata o caso de arquivo vazio
     if (!fileContent.trim()) {
       return [];
     }
     
-    return JSON.parse(fileContent);
+    // Parse do conteúdo JSON
+    try {
+      const players = JSON.parse(fileContent);
+      console.log(`Número de jogadores encontrados: ${players.length}`);
+      return players;
+    } catch (parseError) {
+      console.error(`Erro ao fazer parse do JSON: ${parseError.message}`);
+      // Se houver erro no parse, retorna um array vazio e reescreve o arquivo
+      fs.writeFileSync(PLAYERS_FILE_PATH, JSON.stringify([]));
+      return [];
+    }
   } catch (error) {
-    console.error('Erro ao ler arquivo de jogadores:', error);
-    throw new Error(`Falha ao ler dados dos jogadores: ${error.message}`);
+    console.error(`Erro ao ler arquivo de jogadores: ${error.message}`);
+    // Em caso de erro, retorna um array vazio
+    return [];
   }
 }
 
 // Função auxiliar para salvar no arquivo de jogadores
 function writePlayersFile(players) {
   try {
+    console.log(`Salvando ${players.length} jogadores no arquivo`);
     const dataDir = path.join(process.cwd(), 'data');
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
     }
-    fs.writeFileSync(PLAYERS_FILE_PATH, JSON.stringify(players, null, 2));
+    
+    // Garante que o arquivo seja salvo com UTF-8 e formatação
+    fs.writeFileSync(PLAYERS_FILE_PATH, JSON.stringify(players, null, 2), 'utf8');
+    console.log('Arquivo salvo com sucesso');
     return true;
   } catch (error) {
-    console.error('Erro ao salvar arquivo de jogadores:', error);
-    throw new Error(`Falha ao salvar dados dos jogadores: ${error.message}`);
+    console.error(`Erro ao salvar arquivo de jogadores: ${error.message}`);
+    return false;
   }
 }
 
@@ -84,16 +102,25 @@ function validatePlayerData(data) {
   };
 }
 
-export async function GET() {
+export async function GET(request) {
   console.log('Recebendo requisição GET para /api/players');
   
   try {
     const players = readPlayersFile();
-    console.log(`Retornando ${players.length} jogadores`);
+    console.log(`Retornando ${players.length} jogadores para o cliente`);
     
-    return NextResponse.json(players);
+    // Adiciona cabeçalhos para evitar caching
+    return NextResponse.json(players, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
+      }
+    });
   } catch (error) {
-    console.error('Erro ao processar requisição GET:', error);
+    console.error(`Erro ao processar requisição GET: ${error.message}`);
+    
     return NextResponse.json(
       { error: 'Falha ao buscar jogadores', details: error.message },
       { status: 500 }
@@ -109,12 +136,11 @@ export async function POST(request) {
     const data = await request.json();
     console.log('Dados recebidos:', data);
     
-    // Validar dados do jogador
-    const validation = validatePlayerData(data);
-    if (!validation.valid) {
-      console.log('Validação falhou:', validation.errors);
+    // Validação básica
+    if (!data.name || typeof data.name !== 'string' || data.name.trim() === '') {
+      console.log('Nome inválido fornecido');
       return NextResponse.json(
-        { error: 'Dados inválidos', details: validation.errors },
+        { error: 'Nome do jogador é obrigatório' },
         { status: 400 }
       );
     }
@@ -150,7 +176,7 @@ export async function POST(request) {
     
     // Criar novo jogador
     const newPlayer = {
-      id: `player_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      id: `player_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       name: data.name.trim(),
       email: data.email ? data.email.trim() : undefined,
       createdAt: new Date().toISOString(),
@@ -165,12 +191,27 @@ export async function POST(request) {
     players.push(newPlayer);
     
     // Salvar no arquivo
-    writePlayersFile(players);
+    const saved = writePlayersFile(players);
+    
+    if (!saved) {
+      return NextResponse.json(
+        { error: 'Falha ao salvar os dados do jogador' },
+        { status: 500 }
+      );
+    }
     
     console.log('Jogador registrado com sucesso:', newPlayer);
-    return NextResponse.json(newPlayer, { status: 201 });
+    return NextResponse.json(newPlayer, { 
+      status: 201,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
+      }
+    });
   } catch (error) {
-    console.error('Erro ao processar requisição POST:', error);
+    console.error(`Erro ao processar requisição POST: ${error.message}`);
     
     // Verificar se é um erro de parsing JSON
     if (error instanceof SyntaxError && error.message.includes('JSON')) {

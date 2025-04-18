@@ -1,6 +1,7 @@
 'use client';
 
 import { Chess } from 'chess.js'
+import CapturedPieces from './CapturedPieces'
 
 interface PlayerInfoProps {
   player1Name: string
@@ -8,110 +9,63 @@ interface PlayerInfoProps {
   game: Chess
 }
 
-interface PieceCount {
-  [key: string]: number;
-}
-
-interface PieceCounts {
-  w: PieceCount;
-  b: PieceCount;
-}
-
 export default function PlayerInfo({ player1Name, player2Name, game }: PlayerInfoProps) {
   const currentTurn = game.turn() === 'w' ? player1Name : player2Name
   
-  // Obter peças capturadas
-  const board = game.board()
-  const pieces: PieceCounts = {
-    w: { p: 8, n: 2, b: 2, r: 2, q: 1, k: 1 },
-    b: { p: 8, n: 2, b: 2, r: 2, q: 1, k: 1 }
-  }
-  
-  // Contar peças restantes no tabuleiro
-  for (let rank = 0; rank < 8; rank++) {
-    for (let file = 0; file < 8; file++) {
-      const piece = board[rank][file]
-      if (piece) {
-        pieces[piece.color][piece.type]--
-      }
-    }
-  }
-  
-  // Calcular peças capturadas
-  const capturedByWhite: string[] = []
-  const capturedByBlack: string[] = []
-  
-  for (const [type, count] of Object.entries(pieces.b)) {
-    for (let i = 0; i < count; i++) {
-      capturedByWhite.push(type)
-    }
-  }
-  
-  for (const [type, count] of Object.entries(pieces.w)) {
-    for (let i = 0; i < count; i++) {
-      capturedByBlack.push(type)
-    }
-  }
-  
-  const renderCapturedPieces = (pieces: string[]) => {
-    return pieces.map((type, i) => {
-      let value = 0
-      switch (type) {
-        case 'p': value = 1; break
-        case 'n': case 'b': value = 3; break
-        case 'r': value = 5; break
-        case 'q': value = 9; break
-      }
-      
-      return (
-        <span 
-          key={i} 
-          className="inline-block w-6 h-6 text-center"
-          title={`${type === 'p' ? 'Peão' : 
-                   type === 'n' ? 'Cavalo' : 
-                   type === 'b' ? 'Bispo' : 
-                   type === 'r' ? 'Torre' : 
-                   type === 'q' ? 'Rainha' : 'Rei'}`}
-        >
-          {type === 'p' ? '♟' : 
-           type === 'n' ? '♞' : 
-           type === 'b' ? '♝' : 
-           type === 'r' ? '♜' : 
-           type === 'q' ? '♛' : '♚'}
-        </span>
-      )
-    })
+  // Verificar status do jogo
+  let gameStatus = '';
+  if (game.isCheckmate()) {
+    gameStatus = `Xeque-mate! ${game.turn() === 'w' ? player2Name : player1Name} venceu!`;
+  } else if (game.isDraw()) {
+    // Simplificando a verificação de empate já que alguns métodos não estão disponíveis diretamente
+    gameStatus = 'Empate!';
+  } else if (game.isCheck()) {
+    gameStatus = `Xeque ao rei ${game.turn() === 'w' ? 'branco' : 'preto'}!`;
   }
   
   return (
-    <div>
-      <h2 className="text-xl font-bold mb-4">Informações do Jogo</h2>
+    <div className="info-panel bg-wood-lightest rounded-lg shadow-md p-4 space-y-4">
+      <h2 className="text-xl font-bold mb-4 text-wood-dark">Informações do Jogo</h2>
       
       <div className="mb-4">
-        <div className={`p-2 rounded ${game.turn() === 'w' ? 'bg-amber-100' : ''}`}>
-          <div className="font-bold">{player1Name} (Brancas)</div>
-          <div className="text-sm">Peças capturadas:</div>
-          <div className="flex flex-wrap">{renderCapturedPieces(capturedByBlack)}</div>
+        <div className={`p-3 rounded ${game.turn() === 'w' ? 'bg-amber-100 border-2 border-amber-300' : 'bg-white border border-gray-200'}`}>
+          <div className="font-bold text-wood-dark mb-1">{player1Name} (Brancas)</div>
+          <div className="text-sm text-gray-600">
+            {game.turn() === 'w' && <span className="text-amber-600 font-medium">Aguardando jogada...</span>}
+          </div>
         </div>
       </div>
       
       <div className="mb-4">
-        <div className={`p-2 rounded ${game.turn() === 'b' ? 'bg-amber-100' : ''}`}>
-          <div className="font-bold">{player2Name} (Pretas)</div>
-          <div className="text-sm">Peças capturadas:</div>
-          <div className="flex flex-wrap">{renderCapturedPieces(capturedByWhite)}</div>
+        <div className={`p-3 rounded ${game.turn() === 'b' ? 'bg-amber-100 border-2 border-amber-300' : 'bg-white border border-gray-200'}`}>
+          <div className="font-bold text-wood-dark mb-1">{player2Name} (Pretas)</div>
+          <div className="text-sm text-gray-600">
+            {game.turn() === 'b' && <span className="text-amber-600 font-medium">Aguardando jogada...</span>}
+          </div>
         </div>
       </div>
       
-      <div className="p-2 bg-white rounded shadow">
-        <div className="text-center font-bold">
+      <CapturedPieces game={game} />
+      
+      <div className="p-3 bg-white rounded shadow border border-gray-200">
+        <div className="text-center font-bold text-wood-dark">
           Turno de: {currentTurn}
         </div>
-        <div className="text-center text-sm">
+        <div className="text-center text-sm text-gray-600 mt-1">
           {game.history().length > 0 
             ? `Último movimento: ${game.history()[game.history().length - 1]}`
             : 'Nenhum movimento ainda'}
         </div>
+        {gameStatus && (
+          <div className="text-center font-bold mt-2 text-red-600">
+            {gameStatus}
+          </div>
+        )}
+      </div>
+      
+      <div className="text-center text-sm text-wood-dark mt-4">
+        <div>Total de movimentos: {Math.floor(game.history().length / 2)}</div>
+        <div>Jogadas desde o início: {game.history().length}</div>
       </div>
     </div>
   )

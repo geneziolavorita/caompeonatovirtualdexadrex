@@ -5,18 +5,14 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 
 interface PlayerRegistrationProps {
-  onPlayerRegistered: (player: { id: string; name: string; email?: string }) => void;
+  onPlayerRegistered: (player: { id: string; nome: string; email?: string }) => void;
 }
 
 export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistrationProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState('');
-  const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
-  const [detailedError, setDetailedError] = useState<string | null>(null);
   const router = useRouter();
 
   // Verificar a conectividade do servidor ao carregar o componente
@@ -33,28 +29,29 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
         if (response.ok) {
           const data = await response.json();
           console.log('Servidor está online:', data);
-          setServerStatus('online');
-          setIsOfflineMode(false);
+          
+          // Verificar se o banco de dados está conectado
+          if (data.database && data.database.status === 'connected') {
+            setServerStatus('online');
+            toast.success('Conectado ao banco de dados MongoDB');
+          } else {
+            setServerStatus('offline');
+            toast.error('Problema na conexão com o banco de dados');
+          }
         } else {
           console.log('Servidor respondeu com erro:', response.status);
           setServerStatus('offline');
-          setIsOfflineMode(true);
+          toast.error('Servidor indisponível');
         }
       } catch (err) {
         console.error('Erro ao verificar status do servidor:', err);
         setServerStatus('offline');
-        setIsOfflineMode(true);
+        toast.error('Erro ao conectar ao servidor');
       }
     };
 
     checkServerStatus();
   }, []);
-
-  const clearMessages = () => {
-    setError('');
-    setSuccess('');
-    setDetailedError(null);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,7 +72,7 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          nome: name,  // Usar 'nome' para compatibilidade com a API
+          nome: name,
           email: email || undefined
         }),
       });
@@ -95,6 +92,11 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
       
       if (result.success) {
         toast.success('Jogador cadastrado com sucesso!');
+        
+        if (result.data && onPlayerRegistered) {
+          onPlayerRegistered(result.data);
+        }
+        
         setName('');
         setEmail('');
         router.refresh();
@@ -110,15 +112,8 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
     }
   };
 
-  const toggleOfflineMode = () => {
-    setIsOfflineMode(!isOfflineMode);
-    clearMessages();
-    setSuccess(isOfflineMode ? 'Modo online ativado' : 'Modo offline ativado');
-  };
-
   const retryConnection = async () => {
     setServerStatus('checking');
-    clearMessages();
     
     try {
       const response = await fetch('/api/status', { 
@@ -128,16 +123,22 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
       });
       
       if (response.ok) {
-        setServerStatus('online');
-        setIsOfflineMode(false);
-        setSuccess('Conexão com o servidor restaurada!');
+        const data = await response.json();
+        
+        if (data.database && data.database.status === 'connected') {
+          setServerStatus('online');
+          toast.success('Conexão com o banco de dados restaurada!');
+        } else {
+          setServerStatus('offline');
+          toast.error('Problema na conexão com o banco de dados');
+        }
       } else {
         setServerStatus('offline');
-        setError('Não foi possível conectar ao servidor. Tente novamente mais tarde.');
+        toast.error('Não foi possível conectar ao servidor');
       }
     } catch (err) {
       setServerStatus('offline');
-      setError('Falha ao verificar a conexão com o servidor.');
+      toast.error('Falha ao verificar a conexão com o servidor');
     }
   };
 
@@ -151,9 +152,9 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
         </div>
       )}
       
-      {serverStatus === 'offline' && !isOfflineMode && (
+      {serverStatus === 'offline' && (
         <div className="mb-4 text-yellow-500 text-sm bg-yellow-50 p-2 rounded border border-yellow-200">
-          Aviso: Servidor parece estar offline. Considere usar o modo offline.
+          Aviso: Problema na conexão com o banco de dados.
           <button 
             onClick={retryConnection}
             className="ml-2 text-blue-500 underline hover:no-underline"
@@ -176,7 +177,7 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="Digite o nome do jogador"
             required
-            disabled={loading}
+            disabled={loading || serverStatus === 'offline'}
           />
         </div>
         
@@ -191,32 +192,15 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
             onChange={(e) => setEmail(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="Digite o email do jogador (opcional)"
-            disabled={loading}
+            disabled={loading || serverStatus === 'offline'}
           />
         </div>
         
-        {error && (
-          <div className="mb-4 text-red-500 text-sm bg-red-50 p-3 rounded border border-red-200">
-            {error}
-            {detailedError && (
-              <div className="mt-2 text-xs text-red-400 p-1 bg-red-100 rounded">
-                Detalhes: {detailedError}
-              </div>
-            )}
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-4 text-green-500 text-sm bg-green-50 p-3 rounded border border-green-200">
-            {success}
-          </div>
-        )}
-        
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || serverStatus === 'offline'}
           className={`w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-            loading ? 'opacity-70 cursor-not-allowed' : ''
+            loading || serverStatus === 'offline' ? 'opacity-70 cursor-not-allowed' : ''
           }`}
         >
           {loading ? 'Cadastrando...' : 'Cadastrar Jogador'}

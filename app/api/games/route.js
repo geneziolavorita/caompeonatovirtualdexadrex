@@ -1,211 +1,23 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import dbConnect from '@/lib/mongodb';
+import Game from '@/models/Game';
+import Player from '@/models/Player';
 import { v4 as uuidv4 } from 'uuid';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const GAMES_FILE_PATH = path.join(process.cwd(), 'data/games.json');
-const PLAYERS_FILE_PATH = path.join(process.cwd(), 'data/players.json');
-const DATA_DIR = path.join(process.cwd(), 'data');
-
-// Função para garantir que o diretório de dados existe
-function ensureDataDirectoryExists() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-      console.log('Diretório de dados criado:', DATA_DIR);
-    }
-    return true;
-  } catch (error) {
-    console.error('Erro ao criar diretório de dados:', error);
-    return false;
-  }
-}
-
-// Função para verificar e corrigir arquivo JSON
-function fixJsonFile(filePath) {
-  console.log(`Verificando arquivo: ${filePath}`);
-  
-  // Garantir que o diretório existe
-  ensureDataDirectoryExists();
-  
-  try {
-    // Verificar se o arquivo existe
-    if (!fs.existsSync(filePath)) {
-      console.log(`Arquivo ${filePath} não existe, criando novo arquivo vazio`);
-      fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf8');
-      return true;
-    }
-    
-    // Tentar ler o arquivo
-    try {
-      const fileContent = fs.readFileSync(filePath, 'utf8');
-      
-      // Verificar se o conteúdo está vazio
-      if (!fileContent || fileContent.trim() === '') {
-        console.log(`Arquivo ${filePath} está vazio, inicializando com array vazio`);
-        fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf8');
-        return true;
-      }
-      
-      // Verificar se o JSON é válido
-      try {
-        JSON.parse(fileContent);
-        console.log(`Arquivo ${filePath} é válido`);
-        return true;
-      } catch (jsonError) {
-        console.error(`Erro ao fazer parse do arquivo ${filePath}: ${jsonError.message}`);
-        console.log(`Corrigindo arquivo ${filePath}`);
-        fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf8');
-        return true;
-      }
-    } catch (readError) {
-      console.error(`Erro ao ler arquivo ${filePath}: ${readError.message}`);
-      fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf8');
-      return true;
-    }
-  } catch (error) {
-    console.error(`Erro ao verificar/corrigir arquivo ${filePath}: ${error.message}`);
-    return false;
-  }
-}
-
-// Função para ler o arquivo de jogos
-function readGamesFile() {
-  try {
-    // Verificar e corrigir o arquivo antes de ler
-    fixJsonFile(GAMES_FILE_PATH);
-    
-    // Ler o conteúdo do arquivo
-    const fileContent = fs.readFileSync(GAMES_FILE_PATH, 'utf8');
-    
-    // Verificar se o conteúdo está vazio
-    if (!fileContent || fileContent.trim() === '') {
-      return [];
-    }
-    
-    // Tentar fazer o parse do JSON
-    try {
-      const games = JSON.parse(fileContent);
-      
-      // Verificar se o resultado é um array
-      if (!Array.isArray(games)) {
-        console.warn('Arquivo de jogos não contém um array. Inicializando com array vazio.');
-        fs.writeFileSync(GAMES_FILE_PATH, JSON.stringify([], null, 2), 'utf8');
-        return [];
-      }
-      
-      return games;
-    } catch (parseError) {
-      console.error('Erro ao fazer parse do arquivo de jogos:', parseError);
-      // Se não conseguir fazer o parse, criar um arquivo novo com array vazio
-      fs.writeFileSync(GAMES_FILE_PATH, JSON.stringify([], null, 2), 'utf8');
-      return [];
-    }
-  } catch (error) {
-    console.error('Erro ao ler arquivo de jogos:', error);
-    return [];
-  }
-}
-
-// Função para ler o arquivo de jogadores
-function readPlayersFile() {
-  try {
-    // Verificar e corrigir o arquivo antes de ler
-    fixJsonFile(PLAYERS_FILE_PATH);
-    
-    // Ler o conteúdo do arquivo
-    const fileContent = fs.readFileSync(PLAYERS_FILE_PATH, 'utf8');
-    
-    // Verificar se o conteúdo está vazio
-    if (!fileContent || fileContent.trim() === '') {
-      return [];
-    }
-    
-    // Tentar fazer o parse do JSON
-    try {
-      const players = JSON.parse(fileContent);
-      
-      // Verificar se o resultado é um array
-      if (!Array.isArray(players)) {
-        console.warn('Arquivo de jogadores não contém um array. Inicializando com array vazio.');
-        fs.writeFileSync(PLAYERS_FILE_PATH, JSON.stringify([], null, 2), 'utf8');
-        return [];
-      }
-      
-      return players;
-    } catch (parseError) {
-      console.error('Erro ao fazer parse do arquivo de jogadores:', parseError);
-      // Se não conseguir fazer o parse, criar um arquivo novo com array vazio
-      fs.writeFileSync(PLAYERS_FILE_PATH, JSON.stringify([], null, 2), 'utf8');
-      return [];
-    }
-  } catch (error) {
-    console.error('Erro ao ler arquivo de jogadores:', error);
-    return [];
-  }
-}
-
-// Função para escrever no arquivo de jogos
-function writeGamesFile(games) {
-  try {
-    if (!games || !Array.isArray(games)) {
-      console.error('Tentativa de salvar dados inválidos em games.json');
-      return false;
-    }
-
-    ensureDataDirectoryExists();
-    
-    try {
-      fs.writeFileSync(GAMES_FILE_PATH, JSON.stringify(games, null, 2), 'utf8');
-      return true;
-    } catch (writeError) {
-      console.error('Erro ao escrever arquivo de jogos:', writeError);
-      return false;
-    }
-  } catch (error) {
-    console.error('Erro ao preparar dados para salvar em games.json:', error);
-    return false;
-  }
-}
-
-// Função para escrever no arquivo de jogadores
-function writePlayersFile(players) {
-  try {
-    if (!players || !Array.isArray(players)) {
-      console.error('Tentativa de salvar dados inválidos em players.json');
-      return false;
-    }
-
-    ensureDataDirectoryExists();
-    
-    try {
-      fs.writeFileSync(PLAYERS_FILE_PATH, JSON.stringify(players, null, 2), 'utf8');
-      return true;
-    } catch (writeError) {
-      console.error('Erro ao escrever arquivo de jogadores:', writeError);
-      return false;
-    }
-  } catch (error) {
-    console.error('Erro ao preparar dados para salvar em players.json:', error);
-    return false;
-  }
-}
-
 // Função para atualizar as estatísticas de um jogador após um jogo
-function updatePlayerStats(playerId, resultado) {
+async function updatePlayerStats(playerId, resultado) {
   try {
-    const players = readPlayersFile();
-    const playerIndex = players.findIndex(p => p.id === playerId);
+    await dbConnect();
     
-    if (playerIndex === -1) {
+    const player = await Player.findById(playerId);
+    
+    if (!player) {
       console.warn(`Jogador com ID ${playerId} não encontrado`);
       return false;
     }
-    
-    const player = players[playerIndex];
     
     // Atualizar estatísticas
     player.jogos = (player.jogos || 0) + 1;
@@ -221,8 +33,7 @@ function updatePlayerStats(playerId, resultado) {
       player.pontuacao = (player.pontuacao || 0) + 1; // 1 ponto por empate
     }
     
-    players[playerIndex] = player;
-    writePlayersFile(players);
+    await player.save();
     
     return true;
   } catch (error) {
@@ -231,23 +42,20 @@ function updatePlayerStats(playerId, resultado) {
   }
 }
 
-// Verificar e corrigir arquivos na inicialização
-fixJsonFile(GAMES_FILE_PATH);
-fixJsonFile(PLAYERS_FILE_PATH);
-
 // GET - Obter todos os jogos ou um jogo específico
 export async function GET(request) {
   try {
-    console.log('API: Obtendo jogos');
+    console.log('API: Obtendo jogos do MongoDB');
     
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
     
-    const games = readGamesFile();
+    // Conectar ao banco de dados
+    await dbConnect();
     
     // Se um ID for fornecido, retornar apenas o jogo específico
     if (id) {
-      const game = games.find(g => g.id === id);
+      const game = await Game.findById(id);
       
       if (!game) {
         return NextResponse.json({
@@ -265,6 +73,8 @@ export async function GET(request) {
     }
     
     // Caso contrário, retornar todos os jogos
+    const games = await Game.find({}).sort({ criado_em: -1 });
+    
     return NextResponse.json({
       success: true,
       data: games,
@@ -285,7 +95,7 @@ export async function GET(request) {
 // POST - Criar um novo jogo
 export async function POST(request) {
   try {
-    console.log('API: Criando novo jogo');
+    console.log('API: Criando novo jogo no MongoDB');
     
     let data;
     try {
@@ -316,10 +126,12 @@ export async function POST(request) {
       }, { status: 400 });
     }
     
+    // Conectar ao banco de dados
+    await dbConnect();
+    
     // Verificar se os jogadores existem
-    const players = readPlayersFile();
-    const brancasPlayer = players.find(p => p.id === data.brancasId);
-    const pretasPlayer = players.find(p => p.id === data.pretasId);
+    const brancasPlayer = await Player.findById(data.brancasId);
+    const pretasPlayer = await Player.findById(data.pretasId);
     
     if (!brancasPlayer) {
       return NextResponse.json({
@@ -337,36 +149,21 @@ export async function POST(request) {
       }, { status: 404 });
     }
     
-    // Ler jogos existentes
-    const games = readGamesFile();
-    
     // Criar novo jogo
-    const newGame = {
-      id: uuidv4(),
+    const newGame = new Game({
       brancasId: data.brancasId,
       brancasNome: brancasPlayer.nome || brancasPlayer.name,
       pretasId: data.pretasId,
       pretasNome: pretasPlayer.nome || pretasPlayer.name,
-      data_inicio: new Date().toISOString(),
+      data_inicio: new Date(),
       data_fim: null,
       resultado: 'em_andamento',
       movimentos: [],
-      notacao: '',
-      criado_em: new Date().toISOString(),
-      atualizado_em: new Date().toISOString()
-    };
+      notacao: ''
+    });
     
-    // Adicionar o novo jogo à lista
-    games.push(newGame);
-    
-    // Salvar no arquivo
-    if (!writeGamesFile(games)) {
-      return NextResponse.json({
-        success: false,
-        message: 'Erro ao salvar jogo',
-        timestamp: new Date().toISOString()
-      }, { status: 500 });
-    }
+    // Salvar no banco de dados
+    await newGame.save();
     
     return NextResponse.json({
       success: true,
@@ -388,7 +185,7 @@ export async function POST(request) {
 // PUT - Atualizar um jogo existente
 export async function PUT(request) {
   try {
-    console.log('API: Atualizando jogo');
+    console.log('API: Atualizando jogo no MongoDB');
     
     let data;
     try {
@@ -409,11 +206,13 @@ export async function PUT(request) {
       }, { status: 400 });
     }
     
-    // Ler jogos existentes
-    const games = readGamesFile();
-    const gameIndex = games.findIndex(g => g.id === data.id);
+    // Conectar ao banco de dados
+    await dbConnect();
     
-    if (gameIndex === -1) {
+    // Buscar o jogo
+    const game = await Game.findById(data.id);
+    
+    if (!game) {
       return NextResponse.json({
         success: false,
         message: `Jogo com ID ${data.id} não encontrado`,
@@ -421,49 +220,40 @@ export async function PUT(request) {
       }, { status: 404 });
     }
     
-    const oldGame = games[gameIndex];
+    // Atualizar os campos permitidos
+    if (data.movimentos !== undefined) game.movimentos = data.movimentos;
+    if (data.notacao !== undefined) game.notacao = data.notacao;
     
-    // Atualizar o jogo (apenas campos permitidos)
-    const updatedGame = {
-      ...oldGame,
-      movimentos: data.movimentos || oldGame.movimentos,
-      notacao: data.notacao || oldGame.notacao,
-      resultado: data.resultado || oldGame.resultado,
-      atualizado_em: new Date().toISOString()
-    };
+    const oldResultado = game.resultado;
+    
+    if (data.resultado !== undefined) {
+      game.resultado = data.resultado;
+    }
     
     // Se o jogo está sendo finalizado, atualizar a data de término
-    if (oldGame.resultado === 'em_andamento' && 
+    if (oldResultado === 'em_andamento' && 
         ['vitoria_brancas', 'vitoria_pretas', 'empate'].includes(data.resultado)) {
-      updatedGame.data_fim = new Date().toISOString();
+      game.data_fim = new Date();
       
       // Atualizar estatísticas dos jogadores
       if (data.resultado === 'vitoria_brancas') {
-        updatePlayerStats(updatedGame.brancasId, 'vitoria');
-        updatePlayerStats(updatedGame.pretasId, 'derrota');
+        await updatePlayerStats(game.brancasId, 'vitoria');
+        await updatePlayerStats(game.pretasId, 'derrota');
       } else if (data.resultado === 'vitoria_pretas') {
-        updatePlayerStats(updatedGame.brancasId, 'derrota');
-        updatePlayerStats(updatedGame.pretasId, 'vitoria');
+        await updatePlayerStats(game.brancasId, 'derrota');
+        await updatePlayerStats(game.pretasId, 'vitoria');
       } else if (data.resultado === 'empate') {
-        updatePlayerStats(updatedGame.brancasId, 'empate');
-        updatePlayerStats(updatedGame.pretasId, 'empate');
+        await updatePlayerStats(game.brancasId, 'empate');
+        await updatePlayerStats(game.pretasId, 'empate');
       }
     }
     
-    games[gameIndex] = updatedGame;
-    
-    // Salvar no arquivo
-    if (!writeGamesFile(games)) {
-      return NextResponse.json({
-        success: false,
-        message: 'Erro ao salvar jogo atualizado',
-        timestamp: new Date().toISOString()
-      }, { status: 500 });
-    }
+    // Salvar as alterações
+    await game.save();
     
     return NextResponse.json({
       success: true,
-      data: updatedGame,
+      data: game,
       message: 'Jogo atualizado com sucesso',
       timestamp: new Date().toISOString()
     });
@@ -481,7 +271,7 @@ export async function PUT(request) {
 // DELETE - Excluir um jogo
 export async function DELETE(request) {
   try {
-    console.log('API: Excluindo jogo');
+    console.log('API: Excluindo jogo do MongoDB');
     
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
@@ -494,29 +284,18 @@ export async function DELETE(request) {
       }, { status: 400 });
     }
     
-    // Ler jogos existentes
-    const games = readGamesFile();
-    const initialCount = games.length;
+    // Conectar ao banco de dados
+    await dbConnect();
     
-    // Filtrar para remover o jogo com o ID especificado
-    const filteredGames = games.filter(g => g.id !== id);
+    // Buscar e excluir o jogo
+    const deletedGame = await Game.findByIdAndDelete(id);
     
-    // Verificar se algum jogo foi removido
-    if (filteredGames.length === initialCount) {
+    if (!deletedGame) {
       return NextResponse.json({
         success: false,
         message: `Jogo com ID ${id} não encontrado`,
         timestamp: new Date().toISOString()
       }, { status: 404 });
-    }
-    
-    // Salvar no arquivo
-    if (!writeGamesFile(filteredGames)) {
-      return NextResponse.json({
-        success: false,
-        message: 'Erro ao salvar após excluir jogo',
-        timestamp: new Date().toISOString()
-      }, { status: 500 });
     }
     
     return NextResponse.json({

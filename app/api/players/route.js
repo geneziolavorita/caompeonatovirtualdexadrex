@@ -1,160 +1,20 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import dbConnect from '@/lib/mongodb';
+import Player from '@/models/Player';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const PLAYERS_FILE_PATH = path.join(process.cwd(), 'data/players.json');
-const DATA_DIR = path.join(process.cwd(), 'data');
-
-// Função para garantir que o diretório de dados existe
-function ensureDataDirectoryExists() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-      console.log('Diretório de dados criado:', DATA_DIR);
-    }
-    return true;
-  } catch (error) {
-    console.error('Erro ao criar diretório de dados:', error);
-    return false;
-  }
-}
-
-// Função para verificar e corrigir arquivo JSON
-function fixJsonFile(filePath) {
-  console.log(`Verificando arquivo: ${filePath}`);
-  
-  // Garantir que o diretório existe
-  ensureDataDirectoryExists();
-  
-  try {
-    // Verificar se o arquivo existe
-    if (!fs.existsSync(filePath)) {
-      console.log(`Arquivo ${filePath} não existe, criando novo arquivo vazio`);
-      fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf8');
-      return true;
-    }
-    
-    // Tentar ler o arquivo
-    try {
-      const fileContent = fs.readFileSync(filePath, 'utf8');
-      
-      // Verificar se o conteúdo está vazio
-      if (!fileContent || fileContent.trim() === '') {
-        console.log(`Arquivo ${filePath} está vazio, inicializando com array vazio`);
-        fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf8');
-        return true;
-      }
-      
-      // Verificar se o JSON é válido
-      try {
-        JSON.parse(fileContent);
-        console.log(`Arquivo ${filePath} é válido`);
-        return true;
-      } catch (jsonError) {
-        console.error(`Erro ao fazer parse do arquivo ${filePath}: ${jsonError.message}`);
-        console.log(`Corrigindo arquivo ${filePath}`);
-        fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf8');
-        return true;
-      }
-    } catch (readError) {
-      console.error(`Erro ao ler arquivo ${filePath}: ${readError.message}`);
-      fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf8');
-      return true;
-    }
-  } catch (error) {
-    console.error(`Erro ao verificar/corrigir arquivo ${filePath}: ${error.message}`);
-    return false;
-  }
-}
-
-// Função para ler o arquivo de jogadores
-function readPlayersFile() {
-  try {
-    // Verificar e corrigir o arquivo antes de ler
-    fixJsonFile(PLAYERS_FILE_PATH);
-    
-    // Ler o conteúdo do arquivo
-    const fileContent = fs.readFileSync(PLAYERS_FILE_PATH, 'utf8');
-    
-    // Verificar se o conteúdo está vazio
-    if (!fileContent || fileContent.trim() === '') {
-      return [];
-    }
-    
-    // Tentar fazer o parse do JSON
-    try {
-      const players = JSON.parse(fileContent);
-      
-      // Verificar se o resultado é um array
-      if (!Array.isArray(players)) {
-        console.warn('Arquivo de jogadores não contém um array. Inicializando com array vazio.');
-        fs.writeFileSync(PLAYERS_FILE_PATH, JSON.stringify([], null, 2), 'utf8');
-        return [];
-      }
-      
-      return players;
-    } catch (parseError) {
-      console.error('Erro ao fazer parse do arquivo de jogadores:', parseError);
-      // Se não conseguir fazer o parse, criar um arquivo novo com array vazio
-      fs.writeFileSync(PLAYERS_FILE_PATH, JSON.stringify([], null, 2), 'utf8');
-      return [];
-    }
-  } catch (error) {
-    console.error('Erro ao ler arquivo de jogadores:', error);
-    return [];
-  }
-}
-
-// Função para escrever no arquivo de jogadores
-function writePlayersFile(players) {
-  try {
-    if (!players || !Array.isArray(players)) {
-      console.error('Tentativa de salvar dados inválidos em players.json');
-      return false;
-    }
-    
-    ensureDataDirectoryExists();
-    
-    try {
-      fs.writeFileSync(PLAYERS_FILE_PATH, JSON.stringify(players, null, 2), 'utf8');
-      console.log(`Dados de ${players.length} jogadores salvos com sucesso`);
-      return true;
-    } catch (writeError) {
-      console.error('Erro ao escrever arquivo de jogadores:', writeError);
-      return false;
-    }
-  } catch (error) {
-    console.error('Erro ao preparar dados para salvar em players.json:', error);
-    return false;
-  }
-}
-
-// Normalizar dados do jogador para garantir compatibilidade
-function normalizePlayerData(data) {
-  // Aceitar tanto "nome" quanto "name" no input
-  const normalizedData = { ...data };
-  
-  // Priorizar "nome" sobre "name" (para APIs atualizadas)
-  if (!normalizedData.nome && normalizedData.name) {
-    normalizedData.nome = normalizedData.name;
-  } else if (!normalizedData.name && normalizedData.nome) {
-    normalizedData.name = normalizedData.nome;
-  }
-  
-  return normalizedData;
-}
-
-// Verificar e corrigir arquivo na inicialização
-fixJsonFile(PLAYERS_FILE_PATH);
-
 // GET - Listar todos os jogadores
 export async function GET() {
   try {
-    console.log('API: Obtendo lista de jogadores');
-    const players = readPlayersFile();
+    console.log('API: Obtendo lista de jogadores do MongoDB');
+    
+    // Conectar ao banco de dados
+    await dbConnect();
+    
+    // Buscar todos os jogadores
+    const players = await Player.find({}).sort({ pontuacao: -1 });
     
     return NextResponse.json({
       success: true,
@@ -176,7 +36,7 @@ export async function GET() {
 // POST - Criar um novo jogador
 export async function POST(request) {
   try {
-    console.log('API: Criando novo jogador');
+    console.log('API: Criando novo jogador no MongoDB');
     
     // Obter dados do request
     let data;
@@ -192,9 +52,6 @@ export async function POST(request) {
       }, { status: 400 });
     }
     
-    // Normalizar dados para garantir compatibilidade com diferentes versões do frontend
-    data = normalizePlayerData(data);
-    
     // Validar dados mínimos
     if (!data.nome) {
       return NextResponse.json({
@@ -204,14 +61,16 @@ export async function POST(request) {
       }, { status: 400 });
     }
     
-    // Ler jogadores existentes
-    const players = readPlayersFile();
+    // Conectar ao banco de dados
+    await dbConnect();
     
     // Verificar se o jogador já existe
-    const playerExists = players.some(player => 
-      (player.nome && player.nome.toLowerCase() === data.nome.toLowerCase()) ||
-      (player.name && player.name.toLowerCase() === data.nome.toLowerCase())
-    );
+    const playerExists = await Player.findOne({
+      $or: [
+        { nome: { $regex: new RegExp(`^${data.nome}$`, 'i') } },
+        { name: { $regex: new RegExp(`^${data.nome}$`, 'i') } }
+      ]
+    });
     
     if (playerExists) {
       return NextResponse.json({
@@ -221,37 +80,20 @@ export async function POST(request) {
       }, { status: 409 });
     }
     
-    // Gerar ID único
-    const uniqueId = `player_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    
-    // Criar objeto do jogador com dados iniciais
-    const newPlayer = {
-      id: uniqueId,
+    // Criar novo jogador
+    const newPlayer = new Player({
       nome: data.nome,
-      name: data.nome, // Duplicar para compatibilidade
+      name: data.nome, // Para compatibilidade
       email: data.email || undefined,
       pontuacao: 0,
       jogos: 0,
       vitorias: 0,
       derrotas: 0,
-      empates: 0,
-      dataCriacao: new Date().toISOString(),
-      createdAt: new Date().toISOString() // Duplicar para compatibilidade
-    };
+      empates: 0
+    });
     
-    console.log('Novo jogador a ser adicionado:', newPlayer);
-    
-    // Adicionar ao array e salvar
-    players.push(newPlayer);
-    const saveResult = writePlayersFile(players);
-    
-    if (!saveResult) {
-      return NextResponse.json({
-        success: false,
-        message: 'Erro ao salvar dados do jogador',
-        timestamp: new Date().toISOString()
-      }, { status: 500 });
-    }
+    // Salvar no banco de dados
+    await newPlayer.save();
     
     return NextResponse.json({
       success: true,
@@ -273,7 +115,7 @@ export async function POST(request) {
 // PUT - Atualizar um jogador
 export async function PUT(request) {
   try {
-    console.log('API: Atualizando jogador');
+    console.log('API: Atualizando jogador no MongoDB');
     
     // Obter dados do request
     let data;
@@ -287,9 +129,6 @@ export async function PUT(request) {
       }, { status: 400 });
     }
     
-    // Normalizar dados para garantir compatibilidade
-    data = normalizePlayerData(data);
-    
     // Validar ID do jogador
     if (!data.id) {
       return NextResponse.json({
@@ -299,13 +138,13 @@ export async function PUT(request) {
       }, { status: 400 });
     }
     
-    // Ler jogadores existentes
-    const players = readPlayersFile();
+    // Conectar ao banco de dados
+    await dbConnect();
     
-    // Encontrar o jogador pelo ID
-    const playerIndex = players.findIndex(player => player.id === data.id);
+    // Encontrar o jogador
+    const player = await Player.findById(data.id);
     
-    if (playerIndex === -1) {
+    if (!player) {
       return NextResponse.json({
         success: false,
         message: `Jogador com ID ${data.id} não encontrado`,
@@ -314,12 +153,14 @@ export async function PUT(request) {
     }
     
     // Se estiver tentando atualizar o nome, verificar se já existe
-    if (data.nome && data.nome !== players[playerIndex].nome) {
-      const nameExists = players.some((player, index) => 
-        index !== playerIndex && 
-        ((player.nome && player.nome.toLowerCase() === data.nome.toLowerCase()) ||
-         (player.name && player.name.toLowerCase() === data.nome.toLowerCase()))
-      );
+    if (data.nome && data.nome !== player.nome) {
+      const nameExists = await Player.findOne({
+        _id: { $ne: data.id },
+        $or: [
+          { nome: { $regex: new RegExp(`^${data.nome}$`, 'i') } },
+          { name: { $regex: new RegExp(`^${data.nome}$`, 'i') } }
+        ]
+      });
       
       if (nameExists) {
         return NextResponse.json({
@@ -330,33 +171,30 @@ export async function PUT(request) {
       }
     }
     
-    // Atualizar jogador preservando campos que não foram enviados
-    const oldPlayer = players[playerIndex];
-    players[playerIndex] = {
-      ...oldPlayer,
-      ...data,
-      // Manter ambos os campos sincronizados para compatibilidade
-      nome: data.nome || oldPlayer.nome || oldPlayer.name,
-      name: data.nome || data.name || oldPlayer.nome || oldPlayer.name,
-      dataAtualizacao: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    // Atualizar campos
+    if (data.nome) {
+      player.nome = data.nome;
+      player.name = data.nome; // Para compatibilidade
+    }
+    
+    if (data.email !== undefined) {
+      player.email = data.email;
+    }
+    
+    // Atualizar estatísticas se fornecidas
+    if (data.pontuacao !== undefined) player.pontuacao = data.pontuacao;
+    if (data.jogos !== undefined) player.jogos = data.jogos;
+    if (data.vitorias !== undefined) player.vitorias = data.vitorias;
+    if (data.derrotas !== undefined) player.derrotas = data.derrotas;
+    if (data.empates !== undefined) player.empates = data.empates;
     
     // Salvar alterações
-    const saveResult = writePlayersFile(players);
-    
-    if (!saveResult) {
-      return NextResponse.json({
-        success: false,
-        message: 'Erro ao salvar alterações do jogador',
-        timestamp: new Date().toISOString()
-      }, { status: 500 });
-    }
+    await player.save();
     
     return NextResponse.json({
       success: true,
       message: 'Jogador atualizado com sucesso',
-      data: players[playerIndex],
+      data: player,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -373,7 +211,7 @@ export async function PUT(request) {
 // DELETE - Remover um jogador
 export async function DELETE(request) {
   try {
-    console.log('API: Removendo jogador');
+    console.log('API: Removendo jogador do MongoDB');
     
     // Obter URL da requisição
     const url = new URL(request.url);
@@ -387,13 +225,13 @@ export async function DELETE(request) {
       }, { status: 400 });
     }
     
-    // Ler jogadores existentes
-    const players = readPlayersFile();
+    // Conectar ao banco de dados
+    await dbConnect();
     
-    // Encontrar o jogador pelo ID
-    const playerIndex = players.findIndex(player => player.id === id);
+    // Encontrar e remover o jogador
+    const deletedPlayer = await Player.findByIdAndDelete(id);
     
-    if (playerIndex === -1) {
+    if (!deletedPlayer) {
       return NextResponse.json({
         success: false,
         message: `Jogador com ID ${id} não encontrado`,
@@ -401,24 +239,10 @@ export async function DELETE(request) {
       }, { status: 404 });
     }
     
-    // Remover o jogador
-    const removedPlayer = players.splice(playerIndex, 1)[0];
-    
-    // Salvar alterações
-    const saveResult = writePlayersFile(players);
-    
-    if (!saveResult) {
-      return NextResponse.json({
-        success: false,
-        message: 'Erro ao salvar após remover jogador',
-        timestamp: new Date().toISOString()
-      }, { status: 500 });
-    }
-    
     return NextResponse.json({
       success: true,
       message: 'Jogador removido com sucesso',
-      data: removedPlayer,
+      data: deletedPlayer,
       timestamp: new Date().toISOString()
     });
   } catch (error) {

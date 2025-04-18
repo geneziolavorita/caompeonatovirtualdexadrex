@@ -7,21 +7,38 @@ export const runtime = 'nodejs';
 
 const PLAYERS_FILE_PATH = path.join(process.cwd(), 'data/players.json');
 
+// Função auxiliar para verificar e criar o diretório de dados se não existir
+function ensureDataDirectoryExists() {
+  const dataDir = path.join(process.cwd(), 'data');
+  if (!fs.existsSync(dataDir)) {
+    try {
+      fs.mkdirSync(dataDir, { recursive: true });
+      console.log(`Diretório de dados criado em: ${dataDir}`);
+      return true;
+    } catch (error) {
+      console.error(`Erro ao criar diretório de dados: ${error.message}`);
+      return false;
+    }
+  }
+  return true;
+}
+
 // Função auxiliar para ler o arquivo de jogadores
 function readPlayersFile() {
   try {
     console.log(`Lendo arquivo de jogadores em: ${PLAYERS_FILE_PATH}`);
     
+    // Verifica se o diretório existe
+    if (!ensureDataDirectoryExists()) {
+      console.error("Não foi possível garantir a existência do diretório de dados");
+      return [];
+    }
+    
     // Verifica se o arquivo existe
     if (!fs.existsSync(PLAYERS_FILE_PATH)) {
       console.log(`Arquivo de jogadores não encontrado. Criando arquivo vazio.`);
-      // Certifique-se de que o diretório data existe
-      const dataDir = path.join(process.cwd(), 'data');
-      if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true });
-      }
       // Cria o arquivo com um array vazio
-      fs.writeFileSync(PLAYERS_FILE_PATH, JSON.stringify([]));
+      fs.writeFileSync(PLAYERS_FILE_PATH, JSON.stringify([], null, 2), 'utf8');
       return [];
     }
     
@@ -31,6 +48,7 @@ function readPlayersFile() {
     
     // Trata o caso de arquivo vazio
     if (!fileContent.trim()) {
+      fs.writeFileSync(PLAYERS_FILE_PATH, JSON.stringify([], null, 2), 'utf8');
       return [];
     }
     
@@ -38,11 +56,11 @@ function readPlayersFile() {
     try {
       const players = JSON.parse(fileContent);
       console.log(`Número de jogadores encontrados: ${players.length}`);
-      return players;
+      return Array.isArray(players) ? players : [];
     } catch (parseError) {
       console.error(`Erro ao fazer parse do JSON: ${parseError.message}`);
       // Se houver erro no parse, retorna um array vazio e reescreve o arquivo
-      fs.writeFileSync(PLAYERS_FILE_PATH, JSON.stringify([]));
+      fs.writeFileSync(PLAYERS_FILE_PATH, JSON.stringify([], null, 2), 'utf8');
       return [];
     }
   } catch (error) {
@@ -55,16 +73,41 @@ function readPlayersFile() {
 // Função auxiliar para salvar no arquivo de jogadores
 function writePlayersFile(players) {
   try {
-    console.log(`Salvando ${players.length} jogadores no arquivo`);
-    const dataDir = path.join(process.cwd(), 'data');
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
+    // Verifica e garante que o diretório existe
+    if (!ensureDataDirectoryExists()) {
+      console.error("Não foi possível garantir a existência do diretório de dados para salvar");
+      return false;
     }
     
-    // Garante que o arquivo seja salvo com UTF-8 e formatação
-    fs.writeFileSync(PLAYERS_FILE_PATH, JSON.stringify(players, null, 2), 'utf8');
-    console.log('Arquivo salvo com sucesso');
-    return true;
+    console.log(`Salvando ${players.length} jogadores no arquivo`);
+    
+    // Verifica se players é um array antes de salvar
+    if (!Array.isArray(players)) {
+      console.error("Os dados a serem salvos não são um array válido");
+      return false;
+    }
+    
+    // Tenta converter para JSON para verificar se é serializável
+    try {
+      const jsonString = JSON.stringify(players, null, 2);
+      
+      // Garante que o arquivo seja salvo com UTF-8 e formatação
+      fs.writeFileSync(PLAYERS_FILE_PATH, jsonString, 'utf8');
+      console.log('Arquivo salvo com sucesso');
+      
+      // Verifica se o arquivo foi realmente salvo
+      if (fs.existsSync(PLAYERS_FILE_PATH)) {
+        const stats = fs.statSync(PLAYERS_FILE_PATH);
+        console.log(`Arquivo salvo com ${stats.size} bytes`);
+        return true;
+      } else {
+        console.error("Arquivo não encontrado após tentativa de salvar");
+        return false;
+      }
+    } catch (jsonError) {
+      console.error(`Erro ao serializar dados para JSON: ${jsonError.message}`);
+      return false;
+    }
   } catch (error) {
     console.error(`Erro ao salvar arquivo de jogadores: ${error.message}`);
     return false;
@@ -133,7 +176,10 @@ export async function POST(request) {
   
   try {
     // Processar o corpo da requisição
-    const data = await request.json();
+    const data = await request.json().catch(e => {
+      console.error("Erro ao ler o corpo da requisição:", e);
+      throw new Error("Formato de requisição inválido");
+    });
     console.log('Dados recebidos:', data);
     
     // Validação básica
@@ -175,12 +221,13 @@ export async function POST(request) {
     }
     
     // Criar novo jogador
+    const timestamp = new Date().toISOString();
     const newPlayer = {
       id: `player_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       name: data.name.trim(),
       email: data.email ? data.email.trim() : undefined,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: timestamp,
+      updatedAt: timestamp,
       games: 0,
       wins: 0,
       draws: 0,
@@ -194,8 +241,9 @@ export async function POST(request) {
     const saved = writePlayersFile(players);
     
     if (!saved) {
+      console.error("Falha ao salvar os dados do jogador!");
       return NextResponse.json(
-        { error: 'Falha ao salvar os dados do jogador' },
+        { error: 'Falha ao salvar os dados do jogador. Verifique os logs do servidor.' },
         { status: 500 }
       );
     }
@@ -212,6 +260,7 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error(`Erro ao processar requisição POST: ${error.message}`);
+    console.error(error.stack);
     
     // Verificar se é um erro de parsing JSON
     if (error instanceof SyntaxError && error.message.includes('JSON')) {

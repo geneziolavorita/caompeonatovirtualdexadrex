@@ -14,11 +14,13 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
   const [success, setSuccess] = useState('');
   const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [detailedError, setDetailedError] = useState<string | null>(null);
 
   // Verificar a conectividade do servidor ao carregar o componente
   useEffect(() => {
     const checkServerStatus = async () => {
       try {
+        console.log('Verificando status do servidor...');
         const response = await fetch('/api/status', { 
           method: 'GET',
           cache: 'no-store',
@@ -26,7 +28,8 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
         });
         
         if (response.ok) {
-          console.log('Servidor está online');
+          const data = await response.json();
+          console.log('Servidor está online:', data);
           setServerStatus('online');
           setIsOfflineMode(false);
         } else {
@@ -44,16 +47,23 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
     checkServerStatus();
   }, []);
 
+  const clearMessages = () => {
+    setError('');
+    setSuccess('');
+    setDetailedError(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validação básica
     if (!name.trim()) {
       setError('Nome é obrigatório.');
       return;
     }
     
-    setError('');
-    setSuccess('');
+    // Limpar mensagens anteriores
+    clearMessages();
     setLoading(true);
     console.log(`Tentando registrar jogador: ${name}${email ? `, email: ${email}` : ''}`);
 
@@ -62,6 +72,21 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
       if (!isOfflineMode) {
         try {
           console.log(`Enviando requisição para /api/players com dados:`, { name, email });
+          
+          // Verificar se a API está acessível antes de enviar os dados
+          const statusCheck = await fetch('/api/status', { 
+            method: 'GET',
+            cache: 'no-store'
+          }).catch(e => {
+            console.error('Erro ao verificar status antes de enviar:', e);
+            throw new Error('Servidor não está respondendo. Tente o modo offline.');
+          });
+          
+          if (!statusCheck.ok) {
+            throw new Error('Servidor não está respondendo corretamente. Tente o modo offline.');
+          }
+          
+          // Enviar a requisição de registro
           const response = await fetch('/api/players', {
             method: 'POST',
             headers: {
@@ -72,23 +97,50 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
           });
           
           console.log(`Resposta recebida com status: ${response.status}`);
-          const data = await response.json();
-          console.log('Dados recebidos:', data);
+          
+          // Tentar obter o corpo da resposta
+          let data;
+          try {
+            data = await response.json();
+            console.log('Dados recebidos:', data);
+          } catch (jsonError) {
+            console.error('Erro ao processar resposta JSON:', jsonError);
+            throw new Error('Erro ao processar resposta do servidor');
+          }
 
           if (response.ok) {
             setSuccess('Jogador registrado com sucesso!');
             onPlayerRegistered(data);
+            // Limpar o formulário após sucesso
             setName('');
             setEmail('');
             return;
           } else {
+            // Extrair a mensagem de erro da resposta
             const errorMsg = data.error || data.details || `Falha no registro (Status ${response.status})`;
             console.error('Erro retornado pelo servidor:', errorMsg);
+            
+            // Armazenar detalhes adicionais do erro, se disponíveis
+            if (data.details) {
+              setDetailedError(data.details);
+            }
+            
             throw new Error(errorMsg);
           }
         } catch (err) {
-          console.error('Erro na comunicação com servidor, mudando para modo offline:', err);
-          setIsOfflineMode(true);
+          console.error('Erro na comunicação com servidor:', err);
+          
+          // Se for um erro de rede, sugerir mudar para modo offline
+          if (err instanceof Error && (
+            err.message.includes('Failed to fetch') || 
+            err.message.includes('NetworkError') ||
+            err.message.includes('offline') ||
+            err.message.includes('não está respondendo')
+          )) {
+            setIsOfflineMode(true);
+            throw new Error(`Erro de conexão: ${err.message}. Mudando para modo offline.`);
+          }
+          
           throw err; // Propagar o erro para o catch externo
         }
       } else {
@@ -103,6 +155,9 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
         
         setSuccess('Jogador registrado localmente (modo offline). Os dados serão sincronizados quando a conexão for restaurada.');
         console.log('Jogador registrado localmente:', mockPlayer);
+        
+        // Simular um atraso para parecer mais real
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         // Importante: sempre chamar onPlayerRegistered para atualizar a UI
         onPlayerRegistered(mockPlayer);
@@ -124,8 +179,33 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
 
   const toggleOfflineMode = () => {
     setIsOfflineMode(!isOfflineMode);
-    setError('');
+    clearMessages();
     setSuccess(isOfflineMode ? 'Modo online ativado' : 'Modo offline ativado');
+  };
+
+  const retryConnection = async () => {
+    setServerStatus('checking');
+    clearMessages();
+    
+    try {
+      const response = await fetch('/api/status', { 
+        method: 'GET',
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      
+      if (response.ok) {
+        setServerStatus('online');
+        setIsOfflineMode(false);
+        setSuccess('Conexão com o servidor restaurada!');
+      } else {
+        setServerStatus('offline');
+        setError('Não foi possível conectar ao servidor. Tente novamente mais tarde.');
+      }
+    } catch (err) {
+      setServerStatus('offline');
+      setError('Falha ao verificar a conexão com o servidor.');
+    }
   };
 
   return (
@@ -140,10 +220,25 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
         </div>
       )}
       
+      {serverStatus === 'offline' && !isOfflineMode && (
+        <div className="mb-4 text-yellow-500 text-sm bg-yellow-50 p-2 rounded border border-yellow-200">
+          Aviso: Servidor parece estar offline. Considere usar o modo offline.
+          <button 
+            onClick={retryConnection}
+            className="ml-2 text-blue-500 underline hover:no-underline"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+      
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
+          <label className="block text-sm font-medium text-wood-dark mb-1">
+            Nome do Jogador *
+          </label>
           <input
-            placeholder="Nome"
+            placeholder="Digite o nome do jogador"
             className="w-full px-3 py-2 border border-wood-medium rounded-md focus:outline-none focus:ring-2 focus:ring-wood-dark"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -152,8 +247,11 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
         </div>
         
         <div className="mb-4">
+          <label className="block text-sm font-medium text-wood-dark mb-1">
+            Email (opcional)
+          </label>
           <input
-            placeholder="Email (opcional)"
+            placeholder="email@exemplo.com"
             className="w-full px-3 py-2 border border-wood-medium rounded-md focus:outline-none focus:ring-2 focus:ring-wood-dark"
             type="email"
             value={email}
@@ -162,13 +260,18 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
         </div>
         
         {error && (
-          <div className="mb-4 text-red-500 text-sm bg-red-50 p-2 rounded border border-red-200">
+          <div className="mb-4 text-red-500 text-sm bg-red-50 p-3 rounded border border-red-200">
             {error}
+            {detailedError && (
+              <div className="mt-2 text-xs text-red-400 p-1 bg-red-100 rounded">
+                Detalhes: {detailedError}
+              </div>
+            )}
           </div>
         )}
 
         {success && (
-          <div className="mb-4 text-green-500 text-sm bg-green-50 p-2 rounded border border-green-200">
+          <div className="mb-4 text-green-500 text-sm bg-green-50 p-3 rounded border border-green-200">
             {success}
           </div>
         )}
@@ -179,7 +282,15 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
             className="w-full bg-wood-dark text-white py-2 px-4 rounded-md hover:bg-wood-medium focus:outline-none focus:ring-2 focus:ring-wood-dark disabled:opacity-50"
             disabled={loading}
           >
-            {loading ? 'Registrando...' : 'Registrar Jogador'}
+            {loading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Registrando...
+              </span>
+            ) : 'Registrar Jogador'}
           </button>
           
           <button

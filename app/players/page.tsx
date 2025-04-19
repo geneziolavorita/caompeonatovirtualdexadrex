@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
+import { Toaster } from 'react-hot-toast';
 
 interface Player {
   _id?: string;
@@ -19,7 +20,8 @@ interface Player {
   dataCriacao?: string;
 }
 
-export default function PlayersPage() {
+// Componente React para a página de jogadores
+function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -101,6 +103,7 @@ export default function PlayersPage() {
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
+        <Toaster position="top-right" />
         <div className="text-center py-8">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
           <p className="mt-2">Carregando jogadores...</p>
@@ -112,6 +115,7 @@ export default function PlayersPage() {
   if (error) {
     return (
       <div className="container mx-auto px-4 py-8">
+        <Toaster position="top-right" />
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           <p className="font-bold">Erro</p>
           <p>{error}</p>
@@ -127,6 +131,7 @@ export default function PlayersPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <Toaster position="top-right" />
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-wood-dark">Jogadores Cadastrados</h1>
         <Link href="/" className="px-4 py-2 bg-wood-dark text-white rounded hover:bg-wood-medium">
@@ -189,4 +194,7 @@ export default function PlayersPage() {
       )}
     </div>
   );
-} 
+}
+
+// Exportação do componente
+export default PlayersPage; 

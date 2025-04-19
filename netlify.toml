@@ -14,16 +14,28 @@
 [[plugins]] 
   package = "@netlify/plugin-nextjs" 
 
-# Redirecionar APIs do Next.js
+# Redirecionamentos necessários para Next.js - NÃO MODIFICAR ordem é importante
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/nextjs-api/:splat"
+  from = "/_next/static/*"
+  to = "/static/:splat"
   status = 200
 
-# Configuração para SPA fallback - garantir que rotas client-side sejam tratadas corretamente
+[[redirects]]
+  from = "/_next/*"
+  to = "/_next/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+# Fallback para todas as outras rotas
 [[redirects]]
   from = "/*"
-  to = "/.netlify/functions/nextjs"
+  to = "/index.html"
   status = 200
 
 # Adicionar cabeçalhos para melhorar o comportamento da aplicação

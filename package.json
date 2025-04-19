@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && cp -r public/* .next/",
     "start": "next start",
     "lint": "next lint",
     "check-mongodb": "node scripts/check-mongodb.js"

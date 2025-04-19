@@ -34,3 +34,5 @@ next-env.d.ts
 
 # sqlite database
 /data 
+# Local Netlify folder
+.netlify

@@ -27,6 +27,7 @@ export default function GameRoom() {
     if (!playerId || !playerName) {
       console.error('Jogador não está logado');
       setError('Você precisa selecionar um jogador antes de iniciar um jogo.');
+      setIsLoading(false);
       return;
     }
 
@@ -53,8 +54,9 @@ export default function GameRoom() {
       loadGame().catch(err => {
         console.error('Erro ao carregar o jogo:', err);
         setError('Erro ao carregar o jogo. Por favor, tente novamente.');
+        setIsLoading(false);
       });
-    }, 500);
+    }, 700);
 
     // Limpeza ao desmontar
     return () => {

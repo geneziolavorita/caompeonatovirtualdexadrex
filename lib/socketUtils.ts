@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { isBrowser } from "./clientUtils";
 
 let socket: Socket | null = null;
+let socketInitializationPromise: Promise<Socket> | null = null;
 
 /**
  * URL do servidor Socket.IO
@@ -63,7 +64,10 @@ export interface ChatMessageEvent {
  * @returns Uma promessa que resolve para o socket ou rejeita com erro
  */
 export async function initSocket(): Promise<Socket> {
-  return new Promise(async (resolve, reject) => {
+  // Reutilizar a promessa existente se já estiver inicializando
+  if (socketInitializationPromise) return socketInitializationPromise;
+
+  socketInitializationPromise = new Promise(async (resolve, reject) => {
     try {
       // Se já temos um socket conectado, reutilizá-lo
       if (socket && socket.connected) {
@@ -74,24 +78,24 @@ export async function initSocket(): Promise<Socket> {
       try {
         const socketEndpointResponse = await fetch('/api/socket');
         if (!socketEndpointResponse.ok) {
-          throw new Error('Falha ao inicializar o servidor de socket');
+          console.warn('Aviso: API de socket não respondeu corretamente. Tentando conectar diretamente.');
         }
       } catch (error) {
-        console.error('Erro ao verificar endpoint de socket:', error);
+        console.warn('Aviso: Falha ao verificar endpoint de socket, tentando conectar diretamente.');
         // Continuar mesmo com erro, para tentar conectar diretamente
       }
       
       // Inicializar o socket com um timeout
-      const connectTimeoutMs = 8000;
+      const connectTimeoutMs = 5000; // Reduzir o timeout para não bloquear por muito tempo
       let connectTimeout: NodeJS.Timeout;
       
       // Criar nova instância do socket
       socket = io({
         path: '/api/socket',
-        reconnectionAttempts: 5,
+        reconnectionAttempts: 3,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        timeout: 10000,
+        timeout: 5000,
         autoConnect: true,
       });
       
@@ -99,7 +103,9 @@ export async function initSocket(): Promise<Socket> {
       connectTimeout = setTimeout(() => {
         if (socket && !socket.connected) {
           socket.disconnect();
-          reject(new Error('Tempo esgotado ao conectar ao servidor'));
+          const timeoutError = new Error('Tempo esgotado ao conectar ao servidor');
+          console.warn(timeoutError.message);
+          reject(timeoutError);
         }
       }, connectTimeoutMs);
       
@@ -113,26 +119,32 @@ export async function initSocket(): Promise<Socket> {
       // Tratamento de erros
       socket.on('connect_error', (error) => {
         clearTimeout(connectTimeout);
-        console.error('Erro ao conectar ao Socket.IO:', error);
+        console.warn('Erro ao conectar ao Socket.IO:', error);
         reject(error);
       });
       
       socket.on('error', (error) => {
-        console.error('Erro no Socket.IO:', error);
+        console.warn('Erro no Socket.IO:', error);
         // Não rejeitamos aqui, pois este evento pode ocorrer após a conexão bem-sucedida
-        toast.error('Erro de conexão com o servidor');
       });
       
       socket.on('disconnect', (reason) => {
         console.warn('Desconectado do Socket.IO:', reason);
-        toast.error('Conexão com o servidor perdida');
       });
       
     } catch (error) {
-      console.error('Erro ao inicializar Socket.IO:', error);
+      console.warn('Erro ao inicializar Socket.IO:', error);
       reject(error);
     }
   });
+
+  try {
+    return await socketInitializationPromise;
+  } catch (error) {
+    // Limpar a promessa em caso de erro para permitir novas tentativas
+    socketInitializationPromise = null;
+    throw error;
+  }
 }
 
 /**
@@ -149,10 +161,15 @@ export function disconnectSocket(): void {
  * Obtém o socket atual ou inicializa um novo
  */
 export async function getSocket(): Promise<Socket> {
-  if (!socket || !socket.connected) {
-    return initSocket();
+  try {
+    if (!socket || !socket.connected) {
+      return await initSocket();
+    }
+    return socket;
+  } catch (error) {
+    console.warn('Falha ao obter socket:', error);
+    throw error;
   }
-  return socket;
 }
 
 /**

@@ -14,13 +14,17 @@
 [[plugins]] 
   package = "@netlify/plugin-nextjs" 
 
-# Configuração para tratamento de erros e redirecionamentos
+# Redirecionar APIs do Next.js
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/nextjs-api/:splat"
+  status = 200
+
+# Configuração para SPA fallback - garantir que rotas client-side sejam tratadas corretamente
 [[redirects]]
   from = "/*"
-  to = "/index.html"
+  to = "/.netlify/functions/nextjs"
   status = 200
-  force = false
-  conditions = {Client-Side-Rendering = "true"}
 
 # Adicionar cabeçalhos para melhorar o comportamento da aplicação
 [[headers]]

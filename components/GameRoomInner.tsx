@@ -18,6 +18,7 @@ export default function GameRoomInner({ roomId }: { roomId: string }) {
   const [currentPlayerName, setCurrentPlayerName] = useState('');
   const [gameStatus, setGameStatus] = useState<'waiting' | 'playing' | 'finished'>('waiting');
   const [statusMessage, setStatusMessage] = useState('Conectando ao servidor...');
+  const [socketConnected, setSocketConnected] = useState(false);
 
   // Setup do jogo
   useEffect(() => {
@@ -25,6 +26,8 @@ export default function GameRoomInner({ roomId }: { roomId: string }) {
 
     let socket: any = null;
     let mounted = true;
+    let connectionAttempts = 0;
+    const maxConnectionAttempts = 3;
 
     // Obter informações do jogador
     const playerId = getLocalStorageItem('playerId', '');
@@ -39,15 +42,35 @@ export default function GameRoomInner({ roomId }: { roomId: string }) {
     setCurrentPlayerId(playerId);
     setCurrentPlayerName(playerName);
 
-    // Conectar ao socket
-    const setupSocket = async () => {
+    // Função para tentar conectar ao socket com retry
+    const connectSocket = async () => {
+      if (!mounted) return;
+      
+      if (connectionAttempts >= maxConnectionAttempts) {
+        setIsConnecting(false);
+        setStatusMessage('Não foi possível conectar ao servidor após várias tentativas.');
+        setSocketConnected(false);
+        setIsLoading(false);
+        return;
+      }
+      
       try {
-        // Inicializar o socket
+        // Incrementar contador de tentativas
+        connectionAttempts++;
+        
+        // Tentar inicializar o socket
         socket = await initSocket();
+        
+        if (!mounted) return;
+        
+        setSocketConnected(true);
+        setIsConnecting(false);
+        setStatusMessage('Conectado. Entrando na sala...');
         
         // Configurar eventos básicos
         socket.on('connect', () => {
           if (mounted) {
+            setSocketConnected(true);
             setIsConnecting(false);
             setStatusMessage('Conectado. Entrando na sala...');
             
@@ -83,15 +106,23 @@ export default function GameRoomInner({ roomId }: { roomId: string }) {
         
         socket.on('error', (error: any) => {
           if (mounted) {
-            console.error('Erro no socket:', error);
-            setErrorMessage('Erro de conexão: ' + (error.message || 'Erro desconhecido'));
+            console.warn('Erro no socket:', error);
+            toast.error('Erro de conexão: ' + (error.message || 'Erro desconhecido'));
           }
         });
 
         socket.on('disconnect', () => {
           if (mounted) {
+            setSocketConnected(false);
             setStatusMessage('Desconectado do servidor. Tentando reconectar...');
             toast.error('Desconectado do servidor');
+            
+            // Tentar reconectar após 2 segundos
+            setTimeout(() => {
+              if (mounted && !socket.connected) {
+                connectSocket();
+              }
+            }, 2000);
           }
         });
         
@@ -99,17 +130,22 @@ export default function GameRoomInner({ roomId }: { roomId: string }) {
         setIsLoading(false);
         
       } catch (error: any) {
-        console.error('Falha ao conectar ao servidor:', error);
+        console.warn('Falha ao conectar ao servidor:', error);
+        
         if (mounted) {
-          setErrorMessage('Falha ao conectar ao servidor: ' + (error?.message || 'Erro desconhecido'));
-          setIsLoading(false);
+          // Tentar novamente após um delay
+          setTimeout(() => {
+            if (mounted) {
+              connectSocket();
+            }
+          }, 3000);
         }
       }
     };
 
     // Iniciar a configuração
-    setupSocket().catch(err => {
-      console.error('Erro ao configurar socket:', err);
+    connectSocket().catch(err => {
+      console.warn('Erro ao configurar socket:', err);
       if (mounted) {
         setErrorMessage('Erro ao configurar conexão: ' + (err?.message || 'Erro desconhecido'));
         setIsLoading(false);
@@ -237,6 +273,18 @@ export default function GameRoomInner({ roomId }: { roomId: string }) {
                 <li>Peças brancas começam o jogo</li>
               </ol>
             </div>
+          </div>
+        )}
+
+        {!socketConnected && !isConnecting && (
+          <div className="mt-4 p-3 bg-yellow-100 border-yellow-400 border rounded-md text-center">
+            <p className="text-yellow-800">Você está desconectado do servidor.</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-2 px-4 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+            >
+              Tentar reconectar
+            </button>
           </div>
         )}
       </div>

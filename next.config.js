@@ -17,8 +17,12 @@ const nextConfig = {
     
     return config;
   },
-  // Configuração atualizada para pacotes externos
-  serverExternalPackages: ['mongoose', 'mongodb'],
+  // Configuração para Netlify
+  env: {
+    MONGODB_URI: process.env.MONGODB_URI,
+    MONGODB_CONNECT_TIMEOUT: process.env.MONGODB_CONNECT_TIMEOUT,
+    MONGODB_SOCKET_TIMEOUT: process.env.MONGODB_SOCKET_TIMEOUT,
+  }
 };
 
 module.exports = nextConfig; 

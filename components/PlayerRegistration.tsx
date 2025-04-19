@@ -319,4 +319,3 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
     </div>
   );
 } 
-} 

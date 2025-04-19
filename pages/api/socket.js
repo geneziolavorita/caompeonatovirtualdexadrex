@@ -19,6 +19,10 @@ export default async function SocketHandler(req, res) {
   const io = new Server(res.socket.server, {
     path: '/api/socket',
     addTrailingSlash: false,
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST']
+    }
   });
   
   // Armazenar a instância do Socket.IO no objeto do servidor
@@ -42,7 +46,8 @@ export default async function SocketHandler(req, res) {
           players: [],
           currentGame: null,
           gameStarted: false,
-          spectators: []
+          spectators: [],
+          messages: [] // Armazenar histórico de mensagens
         });
       }
       
@@ -52,7 +57,14 @@ export default async function SocketHandler(req, res) {
       if (room.players.length < 2 && !room.players.find(p => p.id === playerId)) {
         // Adicionar jogador à sala
         const playerColor = room.players.length === 0 ? 'white' : 'black';
-        const player = { id: playerId, name: playerName, color: playerColor };
+        const player = { 
+          id: playerId, 
+          name: playerName, 
+          color: playerColor, 
+          socketId: socket.id,
+          connected: true
+        };
+        
         room.players.push(player);
         
         // Informar o jogador sobre sua cor
@@ -76,6 +88,11 @@ export default async function SocketHandler(req, res) {
       } else if (room.players.find(p => p.id === playerId)) {
         // Jogador reconectando
         const player = room.players.find(p => p.id === playerId);
+        
+        // Atualizar socketId e status de conexão
+        player.socketId = socket.id;
+        player.connected = true;
+        
         socket.emit('color-assigned', { color: player.color });
         
         // Se o jogo já começou, enviar o estado atual
@@ -86,9 +103,23 @@ export default async function SocketHandler(req, res) {
             gameStarted: true
           });
         }
+        
+        // Enviar o histórico de mensagens para o jogador reconectado
+        if (room.messages && room.messages.length > 0) {
+          room.messages.forEach(msg => {
+            socket.emit('chat-message', msg);
+          });
+        }
       } else {
         // Sala cheia, jogador vira espectador
-        room.spectators.push({ id: playerId, name: playerName });
+        const spectator = { 
+          id: playerId, 
+          name: playerName, 
+          socketId: socket.id,
+          connected: true 
+        };
+        
+        room.spectators.push(spectator);
         socket.emit('spectator-mode');
         
         // Enviar estado atual para o espectador
@@ -98,6 +129,13 @@ export default async function SocketHandler(req, res) {
             players: room.players,
             gameStarted: true,
             asSpectator: true
+          });
+        }
+        
+        // Enviar o histórico de mensagens para o espectador
+        if (room.messages && room.messages.length > 0) {
+          room.messages.forEach(msg => {
+            socket.emit('chat-message', msg);
           });
         }
       }
@@ -121,11 +159,30 @@ export default async function SocketHandler(req, res) {
 
     // Jogador envia mensagem no chat
     socket.on('chat-message', ({ roomId, message, playerName }) => {
-      io.to(roomId).emit('chat-message', {
+      const room = gameRooms.get(roomId);
+      if (!room) return;
+      
+      // Criar objeto de mensagem
+      const messageObject = {
         message,
         playerName,
         timestamp: new Date().toISOString()
-      });
+      };
+      
+      // Armazenar mensagem no histórico da sala
+      if (!room.messages) {
+        room.messages = [];
+      }
+      
+      // Limitar o histórico a 100 mensagens
+      if (room.messages.length >= 100) {
+        room.messages.shift(); // Remove a mensagem mais antiga
+      }
+      
+      room.messages.push(messageObject);
+      
+      // Transmitir para todos na sala
+      io.to(roomId).emit('chat-message', messageObject);
     });
 
     // Jogador propõe empate
@@ -162,7 +219,7 @@ export default async function SocketHandler(req, res) {
         // Finalizar o jogo com vitória do oponente
         io.to(roomId).emit('game-end', { 
           result: 'resignation',
-          winner: winner.id,
+          winnerId: winner.id,
           message: `${resigningPlayer.name} desistiu. ${winner.name} venceu a partida!`
         });
       }
@@ -176,7 +233,7 @@ export default async function SocketHandler(req, res) {
       let message = '';
       if (result === 'checkmate') {
         const winner = room.players.find(p => p.id === winnerId);
-        message = `Xeque-mate! ${winner.name} venceu a partida!`;
+        message = `Xeque-mate! ${winner?.name || 'Jogador'} venceu a partida!`;
       } else if (result === 'stalemate') {
         message = 'Afogamento! O jogo terminou em empate.';
       } else if (result === 'threefold') {
@@ -185,6 +242,8 @@ export default async function SocketHandler(req, res) {
         message = 'Empate por material insuficiente!';
       } else if (result === 'fifty-move') {
         message = 'Empate pela regra dos cinquenta movimentos!';
+      } else {
+        message = 'O jogo terminou!';
       }
       
       // Notificar todos sobre o fim do jogo
@@ -197,17 +256,29 @@ export default async function SocketHandler(req, res) {
       
       // Encontrar em qual sala o jogador estava
       for (const [roomId, room] of gameRooms.entries()) {
+        // Verificar jogadores
         const playerIndex = room.players.findIndex(p => p.socketId === socket.id);
         
         if (playerIndex !== -1) {
+          const player = room.players[playerIndex];
+          console.log(`Jogador ${player.name} (${player.id}) desconectou da sala ${roomId}`);
+          
+          // Marcar como desconectado
+          player.connected = false;
+          
           // Notificar os outros jogadores da sala
-          socket.to(roomId).emit('player-disconnected', {
-            playerId: room.players[playerIndex].id
+          io.to(roomId).emit('player-disconnected', {
+            playerId: player.id,
+            playerName: player.name
           });
           
-          // Não remover o jogador, permitir reconexão
-          room.players[playerIndex].connected = false;
           break;
+        }
+        
+        // Verificar espectadores
+        const spectatorIndex = room.spectators?.findIndex(s => s.socketId === socket.id);
+        if (spectatorIndex !== -1) {
+          room.spectators[spectatorIndex].connected = false;
         }
       }
     });

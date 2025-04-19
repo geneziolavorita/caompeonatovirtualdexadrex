@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { mockPlayers } from '@/lib/mock-data';
+import { toast } from 'react-hot-toast';
 
 // Atualizar interface do jogador para incluir campos do MongoDB
 interface Player {
@@ -21,6 +22,7 @@ export default function PlayerSelect({ label, value, onChange }: PlayerSelectPro
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isServerOnline, setIsServerOnline] = useState(true);
   // Contador de recargas para forçar recarregamento da lista
   const [refreshCounter, setRefreshCounter] = useState(0);
 
@@ -30,12 +32,30 @@ export default function PlayerSelect({ label, value, onChange }: PlayerSelectPro
     setLoading(true);
   };
 
+  // Carregar jogadores locais do localStorage
+  const loadLocalPlayers = () => {
+    try {
+      const localPlayersStr = localStorage.getItem('localPlayers');
+      if (localPlayersStr) {
+        const localPlayers = JSON.parse(localPlayersStr);
+        console.log(`PlayerSelect (${label}): Carregados ${localPlayers.length} jogadores locais`);
+        return localPlayers;
+      }
+    } catch (err) {
+      console.error(`PlayerSelect (${label}): Erro ao carregar jogadores locais:`, err);
+    }
+    return [];
+  };
+
   useEffect(() => {
     const fetchPlayers = async () => {
       try {
         setLoading(true);
         setError('');
         console.log(`PlayerSelect (${label}): Buscando lista de jogadores...`);
+        
+        // Obter jogadores locais
+        const localPlayers = loadLocalPlayers();
         
         try {
           // Gera um timestamp único para evitar o cache
@@ -56,21 +76,51 @@ export default function PlayerSelect({ label, value, onChange }: PlayerSelectPro
             console.log(`PlayerSelect (${label}): Dados recebidos:`, data);
             
             if (data.success && data.data && Array.isArray(data.data)) {
-              console.log(`PlayerSelect (${label}): ${data.data.length} jogadores encontrados`);
-              setPlayers(data.data);
+              console.log(`PlayerSelect (${label}): ${data.data.length} jogadores encontrados no servidor`);
+              
+              // Combinar jogadores do servidor com jogadores locais
+              const serverPlayers = data.data;
+              const allPlayers = [...serverPlayers];
+              
+              // Adicionar jogadores locais que não existem no servidor
+              if (localPlayers.length > 0) {
+                localPlayers.forEach((localPlayer: Player) => {
+                  const localId = getPlayerId(localPlayer);
+                  const exists = serverPlayers.some((serverPlayer: Player) => 
+                    getPlayerId(serverPlayer) === localId || 
+                    getPlayerName(serverPlayer) === getPlayerName(localPlayer)
+                  );
+                  
+                  if (!exists) {
+                    allPlayers.push(localPlayer);
+                  }
+                });
+              }
+              
+              setPlayers(allPlayers);
+              setIsServerOnline(true);
               setLoading(false);
               return;
             } else {
-              console.log(`PlayerSelect (${label}): Lista vazia ou inválida, usando dados mock`);
-              setPlayers(mockPlayers);
+              console.log(`PlayerSelect (${label}): Lista vazia ou inválida do servidor`);
             }
           } else {
             throw new Error(`Erro do servidor: ${response.status}`);
           }
         } catch (err) {
           console.error(`PlayerSelect (${label}): Erro ao buscar do servidor:`, err);
-          console.log(`PlayerSelect (${label}): Usando dados mock como fallback`);
-          setPlayers(mockPlayers);
+          setIsServerOnline(false);
+          
+          // Verificar se temos jogadores locais
+          if (localPlayers.length > 0) {
+            console.log(`PlayerSelect (${label}): Usando ${localPlayers.length} jogadores locais`);
+            setPlayers(localPlayers);
+            toast.success('Usando jogadores locais (modo offline)');
+          } else {
+            // Se não tivermos jogadores locais, usar mock
+            console.log(`PlayerSelect (${label}): Usando dados mock como fallback`);
+            setPlayers(mockPlayers);
+          }
         }
       } catch (err: any) {
         console.error(`PlayerSelect (${label}): Erro geral:`, err);
@@ -111,6 +161,11 @@ export default function PlayerSelect({ label, value, onChange }: PlayerSelectPro
     if (player) {
       const playerName = getPlayerName(player);
       console.log(`PlayerSelect (${label}): Selecionado jogador ID=${playerId}, Nome=${playerName}`);
+      
+      // Salvar no localStorage para criar/entrar em salas
+      localStorage.setItem('playerId', playerId);
+      localStorage.setItem('playerName', playerName);
+      
       onChange(playerId, playerName);
     } else {
       console.error(`PlayerSelect (${label}): Jogador com ID ${playerId} não encontrado na lista`);
@@ -188,7 +243,7 @@ export default function PlayerSelect({ label, value, onChange }: PlayerSelectPro
           <option value="">Selecione um jogador</option>
           {players.map((player) => (
             <option key={getPlayerId(player)} value={getPlayerId(player)}>
-              {getPlayerName(player)}
+              {getPlayerName(player)} {!isServerOnline && getPlayerId(player).includes('-') ? '(Local)' : ''}
             </option>
           ))}
         </select>
@@ -203,7 +258,10 @@ export default function PlayerSelect({ label, value, onChange }: PlayerSelectPro
       
       {players.length > 0 && (
         <div className="mt-1 text-xs text-gray-500 flex justify-between">
-          <span>{players.length} jogador(es) disponível(is)</span>
+          <span>
+            {players.length} jogador(es) disponível(is)
+            {!isServerOnline && ' (modo offline)'}
+          </span>
           <button 
             onClick={() => window.location.href = '/?view=register'}
             className="text-blue-500 text-xs underline"

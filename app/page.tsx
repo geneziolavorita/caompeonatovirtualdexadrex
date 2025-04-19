@@ -9,6 +9,7 @@ import TournamentRanking from '@/components/TournamentRanking'
 import PlayerSelect from '@/components/PlayerSelect'
 import { Chess } from 'chess.js'
 import { saveGameResult } from '@/lib/gameUtils'
+import CreateGameRoom from '@/components/CreateGameRoom'
 
 // Componente de ícone para tela cheia
 const FullscreenIcon = () => (
@@ -163,7 +164,7 @@ export default function Home() {
           <div className="flex flex-col md:flex-row gap-6 mb-8">
             <div className="flex-1">
               <div className="bg-wood-light p-6 rounded-lg shadow-md mb-6">
-                <h2 className="text-xl font-bold mb-4 text-wood-dark">Iniciar Nova Partida</h2>
+                <h2 className="text-xl font-bold mb-4 text-wood-dark">Iniciar Nova Partida Local</h2>
                 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-wood-dark mb-1">
@@ -222,9 +223,11 @@ export default function Home() {
                   onClick={handleStartGame}
                   className="w-full bg-wood-dark text-white py-2 px-4 rounded-md hover:bg-wood-medium focus:outline-none focus:ring-2 focus:ring-wood-dark"
                 >
-                  Iniciar Jogo
+                  Iniciar Jogo Local
                 </button>
               </div>
+              
+              <CreateGameRoom />
               
               <div className="flex gap-4 mb-6">
                 <button

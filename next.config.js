@@ -3,16 +3,21 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  // Removendo as configurações experimentais problemáticas
-  webpack: (config, { isServer }) => {
-    // Ajustes adicionais do webpack se necessário
+  
+  // Configurações específicas para suporte ao MongoDB
+  webpack: (config) => {
     return config;
   },
-  // Configuração para Netlify
+  
+  // Otimização de imagens - necessário para Next.js 14
+  images: {
+    domains: [],
+    remotePatterns: [],
+  },
+  
+  // Definir variáveis de ambiente acessíveis ao cliente
   env: {
-    MONGODB_URI: process.env.MONGODB_URI,
-    MONGODB_CONNECT_TIMEOUT: process.env.MONGODB_CONNECT_TIMEOUT,
-    MONGODB_SOCKET_TIMEOUT: process.env.MONGODB_SOCKET_TIMEOUT,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
   }
 };
 

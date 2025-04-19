@@ -4,7 +4,8 @@
   publish = ".next" 
  
 [build.environment] 
-  NODE_VERSION = "18.20.8" 
+  NODE_VERSION = "18" 
+  NEXT_PRIVATE_STANDALONE = "true" 
   # Não defina MONGODB_URI aqui - use as variáveis de ambiente do Netlify
   # Configurações adicionais para tempos limite MongoDB
   MONGODB_CONNECT_TIMEOUT = "30000" 
@@ -12,3 +13,22 @@
  
 [[plugins]] 
   package = "@netlify/plugin-nextjs" 
+
+# Configuração para tratamento de erros e redirecionamentos
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+  conditions = {Client-Side-Rendering = "true"}
+
+# Adicionar cabeçalhos para melhorar o comportamento da aplicação
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # Permitir JavaScript e conexões WebSocket
+    Content-Security-Policy = "default-src 'self'; connect-src 'self' ws: wss: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'"

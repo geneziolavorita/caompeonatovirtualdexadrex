@@ -2,7 +2,7 @@
 
 import { Chess } from 'chess.js';
 import { mockGames } from './mock-data';
-import toast from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 
 export interface GameResult {
   result: 'white' | 'black' | 'draw';
@@ -39,7 +39,7 @@ export async function saveGameResult(game: Chess, whitePlayer: string, blackPlay
       blackPlayer,
       whitePlayerName,
       blackPlayerName,
-      pgn: game.fen(),
+      pgn: game.pgn({ newline_char: ' ' }),
       moves: game.history(),
       startTime,
       endTime: new Date()

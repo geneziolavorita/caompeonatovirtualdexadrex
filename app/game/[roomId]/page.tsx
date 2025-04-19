@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import { Chess, Square, Move } from 'chess.js';
-import io, { Socket } from 'socket.io-client';
+import { Socket } from 'socket.io-client';
 import Chessboard from '@/components/Chessboard';
 import toast, { Toaster } from 'react-hot-toast';
+import { initSocket, disconnectSocket } from '@/lib/socketUtils';
 
 // Interface para a sala de jogo
 interface GameRoom {
@@ -58,6 +59,8 @@ export default function GamePage() {
   const [chatMessages, setChatMessages] = useState<Array<{ playerName: string; message: string; timestamp: string }>>([]);
   const [messageInput, setMessageInput] = useState<string>('');
   const [drawOffered, setDrawOffered] = useState<boolean>(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   
   // Inicializa o socket e configura o jogador ao carregar a página
   useEffect(() => {
@@ -76,42 +79,34 @@ export default function GamePage() {
     setPlayerName(storedPlayerName);
     
     // Inicializar Socket.IO
-    const initSocket = async () => {
-      // Certifique-se de que o servidor Socket.IO esteja inicializado
-      await fetch('/api/socket');
-      
-      const socketInstance = io({
-        path: '/api/socket',
-      });
-      
-      setSocket(socketInstance);
-      
-      // Configurar os eventos do socket
-      socketInstance.on('connect', () => {
-        console.log('Conectado ao servidor Socket.IO');
+    const setupSocket = async () => {
+      try {
+        setIsLoading(true);
+        setConnectionError(null);
+        
+        const socketInstance = await initSocket();
+        setSocket(socketInstance);
+        
         // Entrar na sala de jogo ao conectar
         socketInstance.emit('join-game', {
           roomId,
           playerId: storedPlayerId,
           playerName: storedPlayerName
         });
-      });
-      
-      // Desconectar o socket ao desmontar o componente
-      return () => {
-        socketInstance.disconnect();
-      };
+        
+        setIsLoading(false);
+      } catch (error: any) {
+        console.error('Falha ao conectar ao servidor:', error);
+        setConnectionError(`Falha ao conectar ao servidor de jogo: ${error?.message || 'Erro desconhecido'}`);
+        setIsLoading(false);
+      }
     };
     
-    const socketCleanup = initSocket();
+    setupSocket();
     
     // Limpar socket ao desmontar o componente
     return () => {
-      if (socketCleanup instanceof Promise) {
-        socketCleanup.then(cleanup => {
-          if (cleanup) cleanup();
-        });
-      }
+      disconnectSocket();
     };
   }, [roomId, router]);
   
@@ -143,14 +138,20 @@ export default function GamePage() {
     socket.on('game-start', ({ players, initialFen }: { players: PlayerType[], initialFen: string }) => {
       setGameStarted(true);
       toast.success('O jogo começou!');
-      // Resetar o jogo para a posição inicial
-      const newGame = new Chess(initialFen);
-      setChessGame(newGame);
       
-      // Identificar oponente
-      const opponentPlayer = players.find(p => p.id !== playerId);
-      if (opponentPlayer) {
-        setOpponent(opponentPlayer);
+      try {
+        // Resetar o jogo para a posição inicial
+        const newGame = new Chess(initialFen);
+        setChessGame(newGame);
+        
+        // Identificar oponente
+        const opponentPlayer = players.find(p => p.id !== playerId);
+        if (opponentPlayer) {
+          setOpponent(opponentPlayer);
+        }
+      } catch (error) {
+        console.error('Erro ao inicializar o jogo:', error);
+        toast.error('Erro ao inicializar o jogo. Tente recarregar a página.');
       }
     });
     
@@ -163,6 +164,7 @@ export default function GamePage() {
           setChessGame(newGame);
         } catch (e) {
           console.error('Erro ao aplicar movimento:', e);
+          toast.error('Erro ao processar o movimento do oponente. Tente recarregar a página.');
         }
       }
     });
@@ -230,6 +232,18 @@ export default function GamePage() {
       }
     });
     
+    // Manipulador para reconexão
+    socket.on('reconnect', (attemptNumber) => {
+      toast.success(`Reconectado ao servidor (tentativa ${attemptNumber})`);
+      
+      // Re-entrar na sala após reconexão
+      socket.emit('join-game', {
+        roomId,
+        playerId,
+        playerName
+      });
+    });
+    
     // Limpar eventos ao desmontar
     return () => {
       socket.off('color-assigned');
@@ -242,6 +256,7 @@ export default function GamePage() {
       socket.off('game-end');
       socket.off('spectator-mode');
       socket.off('player-disconnected');
+      socket.off('reconnect');
     };
   }, [socket, playerId, roomId, opponent]);
   
@@ -250,52 +265,64 @@ export default function GamePage() {
     if (!gameStarted || isSpectator || !socket || !playerColor) return;
     
     // Verificar se é a vez do jogador
-    const isPlayersTurn = (chessGame.turn() === 'w' && playerColor === 'white') || 
-                          (chessGame.turn() === 'b' && playerColor === 'black');
+    const isPlayerTurn = (playerColor === 'white' && chessGame.turn() === 'w') || 
+                        (playerColor === 'black' && chessGame.turn() === 'b');
     
-    if (!isPlayersTurn) {
-      toast.error('Não é sua vez!');
+    if (!isPlayerTurn) {
+      toast.error('Não é sua vez de jogar');
       return;
     }
     
     try {
-      // Fazer o movimento no jogo local
-      const newGame = new Chess(chessGame.fen());
-      const result = newGame.move(move as Move);
+      // Tentar fazer o movimento localmente
+      const gameCopy = new Chess(chessGame.fen());
+      const result = gameCopy.move({
+        from: move.from,
+        to: move.to,
+        promotion: 'q' // Auto-promover para rainha
+      });
       
       if (result) {
-        // Atualizar o estado do jogo local
-        setChessGame(newGame);
+        // Atualizar o jogo localmente
+        setChessGame(gameCopy);
         
         // Enviar o movimento para o servidor
         socket.emit('move', {
           roomId,
           move,
           playerId,
-          fen: newGame.fen()
+          fen: gameCopy.fen()
         });
         
-        // Verificar se o jogo terminou
-        if (newGame.isCheckmate()) {
-          socket.emit('game-over', {
-            roomId,
-            result: 'checkmate',
-            winnerId: playerId
-          });
-        } else if (newGame.isDraw()) {
-          let drawReason = 'draw';
+        // Verificar se o jogo acabou após o movimento
+        if (gameCopy.isGameOver()) {
+          let result = '';
+          let message = '';
           
-          // Estas verificações dependem da implementação da biblioteca chess.js
-          // Se não existirem, usamos apenas o método isDraw() genérico
+          if (gameCopy.isCheckmate()) {
+            result = 'checkmate';
+            message = `Xeque-mate! ${playerColor === 'white' ? playerName : opponent?.name} venceu a partida!`;
+          } else if (gameCopy.isDraw()) {
+            result = 'draw';
+            if (gameCopy.isDraw()) {
+              message = 'O jogo terminou em empate.';
+            }
+          }
+          
+          // Enviar o resultado para o servidor
           socket.emit('game-over', {
             roomId,
-            result: drawReason
+            result,
+            winnerId: result === 'checkmate' ? playerId : undefined
           });
+          
+          toast(message);
+          setGameStarted(false);
         }
       }
-    } catch (e) {
-      console.error('Movimento inválido:', e);
-      toast.error('Movimento inválido!');
+    } catch (error) {
+      console.error('Erro ao fazer movimento:', error);
+      toast.error('Movimento inválido');
     }
   };
   
@@ -346,6 +373,44 @@ export default function GamePage() {
       .catch(() => toast.error('Não foi possível copiar o link'));
   };
   
+  // Renderização de estados especiais
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wood-dark mx-auto mb-4"></div>
+          <p className="text-wood-dark">Conectando ao servidor de jogo...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (connectionError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <div className="text-center max-w-md">
+          <div className="text-red-600 text-5xl mb-4">⚠️</div>
+          <h1 className="text-2xl font-bold text-wood-dark mb-2">Erro de Conexão</h1>
+          <p className="mb-6 text-wood-medium">{connectionError}</p>
+          <div className="flex flex-col gap-3">
+            <button 
+              onClick={() => window.location.reload()} 
+              className="bg-wood-dark text-white px-4 py-2 rounded hover:bg-wood-medium"
+            >
+              Tentar novamente
+            </button>
+            <button 
+              onClick={() => router.push('/')} 
+              className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
+            >
+              Voltar ao início
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Renderizar componentes de jogo
   return (
     <div className="container mx-auto px-4 py-8">

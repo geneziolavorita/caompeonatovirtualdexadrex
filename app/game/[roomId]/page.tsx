@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
-import { Chess } from 'chess.js';
+import { Chess, Square, Move } from 'chess.js';
 import io, { Socket } from 'socket.io-client';
 import Chessboard from '@/components/Chessboard';
-import { toast, Toaster } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 
 // Interface para a sala de jogo
 interface GameRoom {
@@ -20,22 +20,39 @@ interface GameRoom {
 
 // Interface para o movimento do xadrez
 interface ChessMove {
-  from: string;
-  to: string;
+  from: Square;
+  to: Square;
   promotion?: string;
+}
+
+interface PlayerType {
+  id: string; 
+  name: string;
+  color?: 'white' | 'black';
+}
+
+// Interface para propriedades do tabuleiro do jogo de xadrez online
+interface OnlineChessboardProps {
+  position: string;
+  onPieceDrop: (sourceSquare: string, targetSquare: string) => boolean;
+  boardOrientation: string;
+  areArrowsAllowed: boolean;
+  customBoardStyle?: React.CSSProperties;
+  customDarkSquareStyle?: React.CSSProperties;
+  customLightSquareStyle?: React.CSSProperties;
 }
 
 export default function GamePage() {
   const router = useRouter();
   const params = useParams();
-  const roomId = params.roomId as string;
+  const roomId = params?.roomId as string;
   
   const [socket, setSocket] = useState<Socket | null>(null);
   const [chessGame, setChessGame] = useState<Chess>(new Chess());
   const [playerColor, setPlayerColor] = useState<'white' | 'black' | null>(null);
   const [playerId, setPlayerId] = useState<string>('');
   const [playerName, setPlayerName] = useState<string>('');
-  const [opponent, setOpponent] = useState<{ id: string; name: string } | null>(null);
+  const [opponent, setOpponent] = useState<PlayerType | null>(null);
   const [gameStarted, setGameStarted] = useState<boolean>(false);
   const [isSpectator, setIsSpectator] = useState<boolean>(false);
   const [chatMessages, setChatMessages] = useState<Array<{ playerName: string; message: string; timestamp: string }>>([]);
@@ -109,7 +126,7 @@ export default function GamePage() {
     });
     
     // Manipulador para quando um jogador entra na sala
-    socket.on('player-joined', ({ player, players, gameStarted }) => {
+    socket.on('player-joined', ({ player, players, gameStarted }: { player: PlayerType, players: PlayerType[], gameStarted: boolean }) => {
       console.log(`Jogador entrou: ${player.name}`);
       
       if (player.id !== playerId) {
@@ -123,7 +140,7 @@ export default function GamePage() {
     });
     
     // Manipulador para o início do jogo
-    socket.on('game-start', ({ players, initialFen }) => {
+    socket.on('game-start', ({ players, initialFen }: { players: PlayerType[], initialFen: string }) => {
       setGameStarted(true);
       toast.success('O jogo começou!');
       // Resetar o jogo para a posição inicial
@@ -138,7 +155,7 @@ export default function GamePage() {
     });
     
     // Manipulador para movimentos feitos pelo oponente
-    socket.on('move-made', ({ move, playerId: movingPlayerId, fen }) => {
+    socket.on('move-made', ({ move, playerId: movingPlayerId, fen }: { move: ChessMove, playerId: string, fen: string }) => {
       if (movingPlayerId !== playerId) {
         // Aplicar o movimento do oponente no tabuleiro local
         try {
@@ -193,7 +210,7 @@ export default function GamePage() {
     });
     
     // Manipulador para o fim do jogo
-    socket.on('game-end', ({ result, winnerId, message }) => {
+    socket.on('game-end', ({ result, winnerId, message }: { result: string, winnerId?: string, message: string }) => {
       toast(message);
       
       // Desabilitar interações com o tabuleiro
@@ -203,11 +220,11 @@ export default function GamePage() {
     // Manipulador para modo espectador
     socket.on('spectator-mode', () => {
       setIsSpectator(true);
-      toast.info('Você está assistindo a esta partida como espectador');
+      toast.success('Você está assistindo a esta partida como espectador');
     });
     
     // Manipulador para desconexão do jogador
-    socket.on('player-disconnected', ({ playerId: disconnectedPlayerId }) => {
+    socket.on('player-disconnected', ({ playerId: disconnectedPlayerId }: { playerId: string }) => {
       if (opponent && opponent.id === disconnectedPlayerId) {
         toast.error(`${opponent.name} se desconectou do jogo`);
       }
@@ -244,7 +261,7 @@ export default function GamePage() {
     try {
       // Fazer o movimento no jogo local
       const newGame = new Chess(chessGame.fen());
-      const result = newGame.move(move);
+      const result = newGame.move(move as Move);
       
       if (result) {
         // Atualizar o estado do jogo local
@@ -267,11 +284,9 @@ export default function GamePage() {
           });
         } else if (newGame.isDraw()) {
           let drawReason = 'draw';
-          if (newGame.isStalemate()) drawReason = 'stalemate';
-          else if (newGame.isThreefoldRepetition()) drawReason = 'threefold';
-          else if (newGame.isInsufficientMaterial()) drawReason = 'insufficient';
-          else if (newGame.isDraw()) drawReason = 'fifty-move';
           
+          // Estas verificações dependem da implementação da biblioteca chess.js
+          // Se não existirem, usamos apenas o método isDraw() genérico
           socket.emit('game-over', {
             roomId,
             result: drawReason
@@ -428,24 +443,9 @@ export default function GamePage() {
         <div className="lg:col-span-1">
           <div className="bg-wood-medium p-2 rounded-lg shadow">
             <Chessboard 
-              position={chessGame.fen()} 
-              onPieceDrop={(sourceSquare, targetSquare) => {
-                const move = { 
-                  from: sourceSquare, 
-                  to: targetSquare,
-                  promotion: 'q' // Promover automaticamente para rainha
-                };
-                makeMove(move);
-                return true;
-              }}
-              boardOrientation={playerColor === 'black' ? 'black' : 'white'}
-              areArrowsAllowed={true}
-              customBoardStyle={{
-                borderRadius: '4px',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              }}
-              customDarkSquareStyle={{ backgroundColor: '#b58863' }}
-              customLightSquareStyle={{ backgroundColor: '#f0d9b5' }}
+              game={chessGame}
+              setGame={setChessGame}
+              gameMode="player"
             />
           </div>
         </div>

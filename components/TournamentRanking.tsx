@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { mockPlayers } from '@/lib/mock-data';
 
-// Atualizar interface para corresponder aos dados do MongoDB
+// Interface para uniformizar os dados de jogador
 interface Player {
   _id?: string;
   id?: number | string;
@@ -22,55 +22,53 @@ interface Player {
   posicao?: number;
 }
 
+/**
+ * Componente que exibe o ranking do campeonato de xadrez
+ * Mostra uma tabela com a classificação dos jogadores ordenados
+ * por pontuação, vitórias, empates e derrotas
+ */
 export default function TournamentRanking() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Função para normalizar campos (compatibilidade entre MongoDB e dados mock)
+  // Função para normalizar os dados do jogador, unificando campos com nomes diferentes
   const normalizePlayerData = (player: Player): Player => {
     return {
       ...player,
-      id: player._id || player.id,
-      name: player.nome || player.name,
-      points: player.pontuacao || player.points || 0,
-      wins: player.vitorias || player.wins || 0,
-      losses: player.derrotas || player.losses || 0,
-      draws: player.empates || player.draws || 0,
-      gamesPlayed: player.jogos || player.gamesPlayed || 0
+      // Garantir que os campos estejam preenchidos corretamente
+      id: player.id || player._id,
+      name: player.name || player.nome,
+      nome: player.nome || player.name,
+      points: player.points || player.pontuacao || 0,
+      pontuacao: player.pontuacao || player.points || 0,
+      wins: player.wins || player.vitorias || 0,
+      vitorias: player.vitorias || player.wins || 0,
+      draws: player.draws || player.empates || 0,
+      empates: player.empates || player.draws || 0,
+      losses: player.losses || player.derrotas || 0,
+      derrotas: player.derrotas || player.losses || 0,
+      gamesPlayed: player.gamesPlayed || player.jogos || 0,
+      jogos: player.jogos || player.gamesPlayed || 0
     };
   };
 
   useEffect(() => {
     const fetchRanking = async () => {
       try {
-        console.log('Buscando ranking...');
-        // Primeiro, tente buscar do servidor
+        setLoading(true);
+        setError('');
+
         try {
-          const response = await fetch('/api/ranking', {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'Cache-Control': 'no-cache'
-            }
-          });
-          
-          console.log('Resposta da API:', response.status);
+          // Tentar buscar os dados do servidor
+          const response = await fetch('/api/players');
           
           if (response.ok) {
             const data = await response.json();
-            console.log('Dados recebidos:', data);
-            
-            if (data.success && Array.isArray(data.data)) {
-              const normalizedPlayers = data.data.map(normalizePlayerData);
-              setPlayers(normalizedPlayers);
-            } else {
-              throw new Error('Formato de dados inválido');
-            }
-            
-            setLoading(false);
-            return;
+            // Dados obtidos com sucesso do servidor
+            setPlayers(data.jogadores.map(normalizePlayerData));
           } else {
+            // Erro na resposta da API
             const errorText = await response.text();
             console.error('Erro na resposta da API:', response.status, errorText);
             throw new Error(`Erro do servidor: ${response.status}`);
@@ -81,10 +79,10 @@ export default function TournamentRanking() {
           console.log('Usando dados mock para ranking');
           // Ordenar dados mock por pontos e vitórias
           const sortedPlayers = [...mockPlayers].sort((a, b) => {
-            if (a.points !== b.points) {
-              return b.points - a.points;
+            if (a.pontuacao !== b.pontuacao) {
+              return b.pontuacao - a.pontuacao;
             }
-            return b.wins - a.wins;
+            return b.vitorias - a.vitorias;
           });
           setPlayers(sortedPlayers);
         }

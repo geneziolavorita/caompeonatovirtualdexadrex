@@ -2,11 +2,12 @@
 
 import { Chess } from 'chess.js';
 import { mockGames } from './mock-data';
+import toast from 'react-hot-toast';
 
 export interface GameResult {
   result: 'white' | 'black' | 'draw';
-  whitePlayer: number;
-  blackPlayer: number;
+  whitePlayer: string;
+  blackPlayer: string;
   whitePlayerName: string;
   blackPlayerName: string;
   pgn: string;
@@ -23,24 +24,22 @@ export async function saveGameResult(game: Chess, whitePlayer: string, blackPlay
     let result: 'white' | 'black' | 'draw';
     
     if (game.isCheckmate()) {
-      // Se é checkmate, o jogador atual perdeu (porque ele está em checkmate)
       result = game.turn() === 'w' ? 'black' : 'white';
     } else if (game.isDraw()) {
       result = 'draw';
     } else {
-      // Se o jogo não acabou, não deveria estar salvando
-      console.error('Tentativa de salvar um jogo que não acabou');
+      toast.error('O jogo ainda não terminou');
       return false;
     }
     
     // Preparar dados para salvar
     const gameResult: GameResult = {
       result,
-      whitePlayer: parseInt(whitePlayer),
-      blackPlayer: parseInt(blackPlayer),
+      whitePlayer,
+      blackPlayer,
       whitePlayerName,
       blackPlayerName,
-      pgn: game.toString(),
+      pgn: game.fen(),
       moves: game.history(),
       startTime,
       endTime: new Date()
@@ -57,21 +56,35 @@ export async function saveGameResult(game: Chess, whitePlayer: string, blackPlay
       });
       
       if (response.ok) {
+        toast.success('Resultado do jogo salvo com sucesso');
         return true;
       } else {
         throw new Error('Falha ao salvar o resultado do jogo');
       }
     } catch (err) {
       console.log('Erro ao se comunicar com o servidor, salvando localmente', err);
+      toast('Servidor offline. Resultado salvo localmente', {
+        icon: '⚠️'
+      });
       
-      // Modo offline - simular salvamento
-      console.log('Resultado do jogo salvo localmente:', gameResult);
-      
-      // Retornar sucesso mesmo no modo offline
-      return true;
+      // Modo offline - salvar no localStorage
+      try {
+        const localGames = JSON.parse(localStorage.getItem('localGames') || '[]');
+        localGames.push({
+          ...gameResult,
+          _id: Date.now().toString()
+        });
+        localStorage.setItem('localGames', JSON.stringify(localGames));
+        return true;
+      } catch (error) {
+        console.error('Erro ao salvar localmente:', error);
+        toast.error('Falha ao salvar o resultado localmente');
+        return false;
+      }
     }
   } catch (error) {
     console.error('Erro ao salvar jogo:', error);
+    toast.error('Erro ao salvar o resultado do jogo');
     return false;
   }
 } 

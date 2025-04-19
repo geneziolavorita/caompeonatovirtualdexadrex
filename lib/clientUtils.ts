@@ -1,75 +1,87 @@
 'use client';
 
 /**
- * Verifica se o código está sendo executado no navegador (cliente)
+ * Verifica se o código está rodando no navegador
  */
 export const isBrowser = typeof window !== 'undefined';
 
 /**
- * Obtém um valor do localStorage com segurança
- * @param key Chave para buscar no localStorage
- * @param defaultValue Valor padrão caso a chave não exista ou ocorra um erro
+ * Obtém um item do localStorage com validação
+ * @param key A chave do item
+ * @param defaultValue Valor padrão caso o item não exista
+ * @returns O valor armazenado ou o valor padrão
  */
-export function getLocalStorage<T>(key: string, defaultValue: T): T {
+export function getLocalStorageItem<T>(key: string, defaultValue: T): T {
+  if (!isBrowser) return defaultValue;
+  
   try {
-    if (!isBrowser) return defaultValue;
-    
-    const stored = localStorage.getItem(key);
-    if (!stored) return defaultValue;
-    
-    return JSON.parse(stored) as T;
-  } catch (error) {
-    console.error(`Erro ao acessar localStorage (${key}):`, error);
+    const item = localStorage.getItem(key);
+    if (item === null) return defaultValue;
+    return JSON.parse(item) as T;
+  } catch (e) {
+    console.error(`Erro ao ler "${key}" do localStorage:`, e);
     return defaultValue;
   }
 }
 
 /**
- * Define um valor no localStorage com segurança
- * @param key Chave para armazenar
- * @param value Valor para armazenar
+ * Armazena um item no localStorage com tratamento de erros
+ * @param key A chave do item
+ * @param value O valor a ser armazenado
+ * @returns true se o armazenamento foi bem-sucedido
  */
-export function setLocalStorage<T>(key: string, value: T): boolean {
+export function setLocalStorageItem<T>(key: string, value: T): boolean {
+  if (!isBrowser) return false;
+  
   try {
-    if (!isBrowser) return false;
-    
     localStorage.setItem(key, JSON.stringify(value));
     return true;
-  } catch (error) {
-    console.error(`Erro ao definir localStorage (${key}):`, error);
+  } catch (e) {
+    console.error(`Erro ao salvar "${key}" no localStorage:`, e);
     return false;
   }
 }
 
 /**
- * Remove um valor do localStorage com segurança
- * @param key Chave para remover
+ * Remove um item do localStorage
+ * @param key A chave do item a ser removido
  */
-export function removeLocalStorage(key: string): boolean {
+export function removeLocalStorageItem(key: string): void {
+  if (!isBrowser) return;
+  
   try {
-    if (!isBrowser) return false;
-    
     localStorage.removeItem(key);
-    return true;
-  } catch (error) {
-    console.error(`Erro ao remover localStorage (${key}):`, error);
-    return false;
+  } catch (e) {
+    console.error(`Erro ao remover "${key}" do localStorage:`, e);
   }
 }
 
 /**
- * Obtém um valor de texto simples do localStorage com segurança
- * @param key Chave para buscar
- * @param defaultValue Valor padrão caso a chave não exista ou ocorra um erro
+ * Limpa todos os dados do localStorage
  */
-export function getLocalStorageItem(key: string, defaultValue: string = ''): string {
+export function clearLocalStorage(): void {
+  if (!isBrowser) return;
+  
   try {
-    if (!isBrowser) return defaultValue;
-    
-    const value = localStorage.getItem(key);
-    return value !== null ? value : defaultValue;
-  } catch (error) {
-    console.error(`Erro ao acessar localStorage (${key}):`, error);
-    return defaultValue;
+    localStorage.clear();
+  } catch (e) {
+    console.error("Erro ao limpar localStorage:", e);
+  }
+}
+
+/**
+ * Verifica se há suporte a localStorage no navegador
+ */
+export function hasLocalStorageSupport(): boolean {
+  if (!isBrowser) return false;
+  
+  try {
+    const testKey = "__test__";
+    localStorage.setItem(testKey, testKey);
+    const result = localStorage.getItem(testKey) === testKey;
+    localStorage.removeItem(testKey);
+    return result;
+  } catch (e) {
+    return false;
   }
 } 

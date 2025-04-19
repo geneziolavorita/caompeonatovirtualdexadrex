@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "check-mongodb": "node scripts/check-mongodb.js"
   },
   "dependencies": {
     "chess.js": "^1.0.0-beta.6",

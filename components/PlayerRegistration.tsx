@@ -59,13 +59,10 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
 
   const notifyPlayerRegistered = () => {
     // Disparar evento personalizado para notificar outros componentes
-    const event = new CustomEvent('playerRegistered', { 
-      bubbles: true, 
-      detail: { timestamp: new Date().getTime() } 
-    });
+    const event = new Event('playerRegistered', { bubbles: true });
     document.dispatchEvent(event);
     
-    // Forçar atualização visual imediata
+    // Forçar atualização da interface
     try {
       router.refresh();
     } catch (e) {
@@ -150,6 +147,7 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
         if (success) {
           setName('');
           setEmail('');
+          notifyPlayerRegistered(); // Notificar após registro local
         }
         
         setLoading(false);
@@ -157,8 +155,6 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
       }
       
       // Modo online - tentar salvar no servidor
-      console.log('Enviando dados para API:', { nome: name, email });
-      
       const response = await fetch('/api/players', {
         method: 'POST',
         headers: {
@@ -171,10 +167,8 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
       });
       
       const result = await response.json();
-      console.log('Resposta da API:', result);
       
       if (!response.ok) {
-        // Mensagem personalizada baseada no código de status
         if (response.status === 409 || (result.erro && result.erro.includes("já existe"))) {
           toast.error(`Jogador com nome '${name}' já existe`);
         } else {
@@ -186,9 +180,7 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
       
       if (result.jogador) {
         toast.success('Jogador cadastrado com sucesso!');
-        
-        // Notificar outros componentes
-        notifyPlayerRegistered();
+        notifyPlayerRegistered(); // Notificar após registro no servidor
         
         if (onPlayerRegistered) {
           onPlayerRegistered(result.jogador);
@@ -196,13 +188,6 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
         
         setName('');
         setEmail('');
-        
-        try {
-          // Tentar atualizar o router
-          router.refresh();
-        } catch (e) {
-          console.error("Erro ao atualizar a rota:", e);
-        }
       } else {
         toast.error(result.erro || 'Erro ao cadastrar jogador');
       }
@@ -210,9 +195,11 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
       console.error('Erro ao cadastrar jogador:', error);
       toast.error('Falha na comunicação com o servidor');
       
-      // Perguntar se deseja registrar localmente
       if (window.confirm('Falha na comunicação com o servidor. Deseja registrar o jogador localmente?')) {
-        registerPlayerLocally();
+        const success = registerPlayerLocally();
+        if (success) {
+          notifyPlayerRegistered(); // Notificar após registro local em caso de falha no servidor
+        }
       }
     } finally {
       setLoading(false);

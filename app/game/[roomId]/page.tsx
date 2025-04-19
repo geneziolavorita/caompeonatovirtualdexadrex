@@ -8,6 +8,8 @@ import { Socket } from 'socket.io-client';
 import Chessboard from '@/components/Chessboard';
 import toast, { Toaster } from 'react-hot-toast';
 import { initSocket, disconnectSocket } from '@/lib/socketUtils';
+import { isBrowser, getLocalStorageItem } from '@/lib/clientUtils';
+import dynamic from 'next/dynamic';
 
 // Interface para a sala de jogo
 interface GameRoom {
@@ -43,7 +45,8 @@ interface OnlineChessboardProps {
   customLightSquareStyle?: React.CSSProperties;
 }
 
-export default function GamePage() {
+// Componente que só será renderizado no cliente
+const ClientOnlyGame = () => {
   const router = useRouter();
   const params = useParams();
   const roomId = params?.roomId as string;
@@ -64,9 +67,11 @@ export default function GamePage() {
   
   // Inicializa o socket e configura o jogador ao carregar a página
   useEffect(() => {
+    if (!isBrowser) return;
+    
     // Recuperar o ID e nome do jogador do localStorage
-    const storedPlayerId = localStorage.getItem('playerId');
-    const storedPlayerName = localStorage.getItem('playerName');
+    const storedPlayerId = getLocalStorageItem('playerId', '');
+    const storedPlayerName = getLocalStorageItem('playerName', '');
     
     if (!storedPlayerId || !storedPlayerName) {
       // Redirecionar para a página de seleção de jogador se não estiver logado
@@ -304,9 +309,7 @@ export default function GamePage() {
             message = `Xeque-mate! ${playerColor === 'white' ? playerName : opponent?.name} venceu a partida!`;
           } else if (gameCopy.isDraw()) {
             result = 'draw';
-            if (gameCopy.isDraw()) {
-              message = 'O jogo terminou em empate.';
-            }
+            message = 'O jogo terminou em empate.';
           }
           
           // Enviar o resultado para o servidor
@@ -561,4 +564,19 @@ export default function GamePage() {
       </div>
     </div>
   );
-} 
+};
+
+// Usar dynamic para garantir que o componente só será renderizado no cliente
+const GamePage = dynamic(() => Promise.resolve(ClientOnlyGame), { 
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wood-dark mx-auto mb-4"></div>
+        <p className="text-wood-dark">Carregando jogo...</p>
+      </div>
+    </div>
+  )
+});
+
+export default GamePage; 

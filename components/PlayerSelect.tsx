@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { mockPlayers } from '@/lib/mock-data';
 import { toast } from 'react-hot-toast';
+import { isBrowser } from '@/lib/clientUtils';
 
 export interface Player {
   _id: string;
@@ -27,10 +28,16 @@ export default function PlayerSelect({ onSelect, selectedPlayer, label }: Player
   const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
+    // Não executar no servidor
+    if (!isBrowser) return;
+
     const fetchPlayers = async () => {
       try {
+        setIsLoading(true);
         const response = await fetch('/api/players');
+        
         if (!response.ok) throw new Error('Falha ao carregar jogadores');
+        
         const data = await response.json();
         setPlayers(data);
         setIsOffline(false);
@@ -85,7 +92,11 @@ export default function PlayerSelect({ onSelect, selectedPlayer, label }: Player
         <div className="text-sm text-red-500">
           Nenhum jogador encontrado. 
           <button
-            onClick={() => window.location.href = '/?showRegistration=true'}
+            onClick={() => {
+              if (isBrowser) {
+                window.location.href = '/?showRegistration=true';
+              }
+            }}
             className="ml-2 text-blue-500 hover:underline"
           >
             Cadastrar novo jogador

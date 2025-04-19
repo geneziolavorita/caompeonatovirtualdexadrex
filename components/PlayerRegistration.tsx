@@ -6,6 +6,7 @@ import { toast, Toaster } from 'react-hot-toast';
 import { mockPlayers } from '@/lib/mock-data';
 // @ts-ignore - Ignorar erro de tipagem do uuid
 import { v4 as uuidv4 } from 'uuid';
+import { isBrowser, getLocalStorage, setLocalStorage } from '@/lib/clientUtils';
 
 interface PlayerRegistrationProps {
   onPlayerRegistered?: (player: { id: string; nome: string; email?: string }) => void;
@@ -21,6 +22,9 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
 
   // Verificar a conectividade do servidor ao carregar o componente
   useEffect(() => {
+    // Não executar no servidor
+    if (!isBrowser) return;
+
     const checkServerStatus = async () => {
       try {
         console.log('Verificando status do servidor...');
@@ -58,6 +62,8 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
   }, []);
 
   const notifyPlayerRegistered = () => {
+    if (!isBrowser) return;
+    
     // Disparar evento personalizado para notificar outros componentes
     const event = new Event('playerRegistered', { bubbles: true });
     document.dispatchEvent(event);
@@ -71,6 +77,8 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
   };
 
   const registerPlayerLocally = () => {
+    if (!isBrowser) return false;
+    
     if (!name.trim()) {
       toast.error('Por favor, digite o nome do jogador');
       return false;
@@ -95,19 +103,18 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
         dataCriacao: new Date().toISOString()
       };
 
-      // Salvar no localStorage
-      const existingPlayers = localStorage.getItem('localPlayers');
-      let players = existingPlayers ? JSON.parse(existingPlayers) : [];
+      // Salvar no localStorage com segurança
+      const existingPlayers = getLocalStorage<any[]>('localPlayers', []);
       
       // Verificar se o nome já existe
-      if (players.some((p: any) => p.nome === name || p.name === name)) {
+      if (existingPlayers.some((p: any) => p.nome === name || p.name === name)) {
         toast.error(`Jogador com nome '${name}' já existe localmente`);
         return false;
       }
       
       // Adicionar novo jogador
-      players.push(playerData);
-      localStorage.setItem('localPlayers', JSON.stringify(players));
+      existingPlayers.push(playerData);
+      setLocalStorage('localPlayers', existingPlayers);
       
       // Atualizar mockPlayers para uso imediato
       mockPlayers.push(playerData);
@@ -195,7 +202,7 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
       console.error('Erro ao cadastrar jogador:', error);
       toast.error('Falha na comunicação com o servidor');
       
-      if (window.confirm('Falha na comunicação com o servidor. Deseja registrar o jogador localmente?')) {
+      if (isBrowser && window.confirm('Falha na comunicação com o servidor. Deseja registrar o jogador localmente?')) {
         const success = registerPlayerLocally();
         if (success) {
           notifyPlayerRegistered(); // Notificar após registro local em caso de falha no servidor
@@ -207,6 +214,8 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
   };
 
   const retryConnection = async () => {
+    if (!isBrowser) return;
+    
     setServerStatus('checking');
     
     try {

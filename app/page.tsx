@@ -11,6 +11,7 @@ import { Chess } from 'chess.js'
 import { saveGameResult } from '@/lib/gameUtils'
 import CreateGameRoom from '@/components/CreateGameRoom'
 import Link from 'next/link'
+import type { Player } from '@/components/PlayerSelect'
 
 // Componente de ícone para tela cheia
 const FullscreenIcon = () => (
@@ -34,6 +35,7 @@ export default function Home() {
   const [player2Name, setPlayer2Name] = useState('Jogador 2')
   const [player1Id, setPlayer1Id] = useState<string>('')
   const [player2Id, setPlayer2Id] = useState<string>('')
+  const [players, setPlayers] = useState<Player[]>([])
   const [gameMode, setGameMode] = useState<'player' | 'computer'>('player')
   const [gameStarted, setGameStarted] = useState(false)
   const [showRules, setShowRules] = useState(false)
@@ -183,12 +185,14 @@ export default function Home() {
                 {gameMode === 'player' ? (
                   <>
                     <PlayerSelect 
+                      label="Jogador 1 (Brancas)"
                       onSelect={(player) => handleSelectPlayer1(player._id, player.name)}
-                      selectedPlayer={players.find(p => p._id === player1Id)}
+                      selectedPlayer={players.find((p: Player) => p._id === player1Id)}
                     />
                     <PlayerSelect 
+                      label="Jogador 2 (Pretas)"
                       onSelect={(player) => handleSelectPlayer2(player._id, player.name)}
-                      selectedPlayer={players.find(p => p._id === player2Id)}
+                      selectedPlayer={players.find((p: Player) => p._id === player2Id)}
                     />
                   </>
                 ) : (

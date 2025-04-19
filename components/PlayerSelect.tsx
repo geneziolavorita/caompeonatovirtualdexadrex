@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { mockPlayers } from '@/lib/mock-data';
 import { toast } from 'react-hot-toast';
 
-// Atualizar interface do jogador para incluir campos do MongoDB
-interface Player {
+export interface Player {
   _id: string;
   nome: string;
   name: string;
@@ -19,9 +18,10 @@ interface Player {
 interface PlayerSelectProps {
   onSelect: (player: Player) => void;
   selectedPlayer?: Player;
+  label?: string;
 }
 
-export default function PlayerSelect({ onSelect, selectedPlayer }: PlayerSelectProps) {
+export default function PlayerSelect({ onSelect, selectedPlayer, label }: PlayerSelectProps) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
@@ -30,15 +30,15 @@ export default function PlayerSelect({ onSelect, selectedPlayer }: PlayerSelectP
     const fetchPlayers = async () => {
       try {
         const response = await fetch('/api/players');
-        if (!response.ok) throw new Error('Failed to fetch players');
+        if (!response.ok) throw new Error('Falha ao carregar jogadores');
         const data = await response.json();
         setPlayers(data);
         setIsOffline(false);
       } catch (error) {
-        console.error('Error fetching players:', error);
+        console.error('Erro ao carregar jogadores:', error);
         setPlayers(mockPlayers);
         setIsOffline(true);
-        toast.error('Server offline. Using mock data.');
+        toast.error('Servidor offline. Usando dados de exemplo.');
       } finally {
         setIsLoading(false);
       }
@@ -48,31 +48,50 @@ export default function PlayerSelect({ onSelect, selectedPlayer }: PlayerSelectP
   }, []);
 
   if (isLoading) {
-    return <div>Loading players...</div>;
+    return <div className="text-gray-500">Carregando jogadores...</div>;
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
+      {label && (
+        <label className="block text-sm font-medium text-gray-700">
+          {label}
+        </label>
+      )}
+      
       {isOffline && (
         <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
-          <p>Server is offline. Using mock data.</p>
+          <p>Servidor offline. Usando dados de exemplo.</p>
         </div>
       )}
+      
       <select
-        className="w-full p-2 border rounded"
+        className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-wood-dark focus:border-wood-dark"
         value={selectedPlayer?._id || ''}
         onChange={(e) => {
           const player = players.find(p => p._id === e.target.value);
           if (player) onSelect(player);
         }}
       >
-        <option value="">Select a player</option>
+        <option value="">Selecione um jogador</option>
         {players.map(player => (
           <option key={player._id} value={player._id}>
-            {player.name} ({player.pontuacao} points)
+            {player.nome} ({player.pontuacao} pontos)
           </option>
         ))}
       </select>
+      
+      {!isLoading && players.length === 0 && (
+        <div className="text-sm text-red-500">
+          Nenhum jogador encontrado. 
+          <button
+            onClick={() => window.location.href = '/?showRegistration=true'}
+            className="ml-2 text-blue-500 hover:underline"
+          >
+            Cadastrar novo jogador
+          </button>
+        </div>
+      )}
     </div>
   );
 } 

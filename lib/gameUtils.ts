@@ -39,7 +39,7 @@ export async function saveGameResult(game: Chess, whitePlayer: string, blackPlay
       blackPlayer,
       whitePlayerName,
       blackPlayerName,
-      pgn: game.pgn({ newline_char: ' ' }),
+      pgn: game.toString().replace(/\n/g, ' '),
       moves: game.history(),
       startTime,
       endTime: new Date()

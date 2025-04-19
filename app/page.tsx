@@ -32,9 +32,9 @@ export default function Home() {
   const [game, setGame] = useState<Chess>(new Chess())
   const [player1Name, setPlayer1Name] = useState('Jogador 1')
   const [player2Name, setPlayer2Name] = useState('Jogador 2')
-  const [player1Id, setPlayer1Id] = useState<string | null>(null)
-  const [player2Id, setPlayer2Id] = useState<string | null>(null)
-  const [gameMode, setGameMode] = useState<'local' | 'online'>('local')
+  const [player1Id, setPlayer1Id] = useState<string>('')
+  const [player2Id, setPlayer2Id] = useState<string>('')
+  const [gameMode, setGameMode] = useState<'player' | 'computer'>('player')
   const [gameStarted, setGameStarted] = useState(false)
   const [showRules, setShowRules] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -65,17 +65,19 @@ export default function Home() {
   }, [])
 
   const checkFullscreenSupport = () => {
-    const elem = document.documentElement
-    if (
-      elem.requestFullscreen ||
-      elem.webkitRequestFullscreen ||
-      // @ts-ignore
-      elem.mozRequestFullScreen ||
-      // @ts-ignore
-      elem.msRequestFullscreen
-    ) {
-      setFullscreenSupported(true)
-    }
+    const elem = document.documentElement;
+    
+    // Verificar suporte a tela cheia com diferentes prefixos de navegador
+    const fullscreenAPI = 
+      typeof elem.requestFullscreen === 'function' ||
+      // @ts-ignore - Prefixo webkit para Safari e versões antigas do Chrome
+      typeof elem.webkitRequestFullscreen === 'function' ||
+      // @ts-ignore - Prefixo moz para Firefox
+      typeof elem.mozRequestFullScreen === 'function' ||
+      // @ts-ignore - Prefixo ms para IE/Edge antigo
+      typeof elem.msRequestFullscreen === 'function';
+      
+    setFullscreenSupported(fullscreenAPI);
   }
 
   const handleRestartCurrentGame = () => {
@@ -124,18 +126,24 @@ export default function Home() {
   }
 
   const handleSelectPlayer1 = (id: string, name: string) => {
-    setPlayer1Id(id)
-    setPlayer1Name(name)
+    setPlayer1Id(id);
+    setPlayer1Name(name);
   }
 
   const handleSelectPlayer2 = (id: string, name: string) => {
-    setPlayer2Id(id)
-    setPlayer2Name(name)
+    setPlayer2Id(id);
+    setPlayer2Name(name);
   }
 
   const handlePlayerRegistered = () => {
     // Atualizar a interface após cadastro de jogador
     setShowRegistration(false)
+  }
+
+  // Mapear o modo de jogo para o formato esperado pelo componente Chessboard
+  const getMappedGameMode = (): 'player' | 'computer' => {
+    // O gameMode já está no formato correto agora
+    return gameMode;
   }
 
   return (
@@ -164,15 +172,15 @@ export default function Home() {
                   </label>
                   <select
                     value={gameMode}
-                    onChange={(e) => setGameMode(e.target.value as 'local' | 'online')}
+                    onChange={(e) => setGameMode(e.target.value as 'player' | 'computer')}
                     className="w-full px-3 py-2 border border-wood-medium rounded-md focus:outline-none focus:ring-2 focus:ring-wood-dark"
                   >
-                    <option value="local">Jogador vs Jogador</option>
-                    <option value="online">Jogador vs Computador</option>
+                    <option value="player">Jogador vs Jogador</option>
+                    <option value="computer">Jogador vs Computador</option>
                   </select>
                 </div>
                 
-                {gameMode === 'local' ? (
+                {gameMode === 'player' ? (
                   <>
                     <PlayerSelect 
                       label="Jogador 1 (Brancas)" 
@@ -294,7 +302,7 @@ export default function Home() {
         <div ref={gameContainerRef} className={`game-container ${isFullscreen ? 'fullscreen' : ''}`}>
           <div className="flex flex-col md:flex-row gap-6">
             <div className="md:w-3/4">
-              <Chessboard game={game} setGame={setGame} gameMode={gameMode} />
+              <Chessboard game={game} setGame={setGame} gameMode={getMappedGameMode()} />
               <GameControls 
                 game={game} 
                 setGame={setGame} 

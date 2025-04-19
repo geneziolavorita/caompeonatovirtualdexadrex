@@ -6,7 +6,7 @@ import { toast, Toaster } from 'react-hot-toast';
 import { mockPlayers } from '@/lib/mock-data';
 // @ts-ignore - Ignorar erro de tipagem do uuid
 import { v4 as uuidv4 } from 'uuid';
-import { isBrowser, getLocalStorage, setLocalStorage } from '@/lib/clientUtils';
+import { isBrowser, getLocalStorageItem, setLocalStorageItem } from '@/lib/clientUtils';
 
 interface PlayerRegistrationProps {
   onPlayerRegistered?: (player: { id: string; nome: string; email?: string }) => void;
@@ -104,7 +104,7 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
       };
 
       // Salvar no localStorage com segurança
-      const existingPlayers = getLocalStorage<any[]>('localPlayers', []);
+      const existingPlayers = getLocalStorageItem<any[]>('localPlayers', []);
       
       // Verificar se o nome já existe
       if (existingPlayers.some((p: any) => p.nome === name || p.name === name)) {
@@ -114,7 +114,7 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
       
       // Adicionar novo jogador
       existingPlayers.push(playerData);
-      setLocalStorage('localPlayers', existingPlayers);
+      setLocalStorageItem('localPlayers', existingPlayers);
       
       // Atualizar mockPlayers para uso imediato
       mockPlayers.push(playerData);

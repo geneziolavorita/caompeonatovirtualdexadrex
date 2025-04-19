@@ -25,7 +25,6 @@ const nextConfig = {
   // Configuração específica para Netlify
   experimental: {
     // Desativar React Server Components
-    appDir: true,
     serverComponentsExternalPackages: []
   },
 

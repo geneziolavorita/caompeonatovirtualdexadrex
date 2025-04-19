@@ -10,18 +10,21 @@ import PlayerSelect from '@/components/PlayerSelect'
 import { Chess } from 'chess.js'
 import { saveGameResult } from '@/lib/gameUtils'
 import CreateGameRoom from '@/components/CreateGameRoom'
+import Link from 'next/link'
 
 // Componente de ícone para tela cheia
 const FullscreenIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="inline-block mr-2" viewBox="0 0 16 16">
-    <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+    <path d="M3 4a1 1 0 011-1h4a1 1 0 010 2H5.414L9 8.586V7a1 1 0 112 0v4a1 1 0 01-1 1H6a1 1 0 110-2h1.586L4 6.414V8a1 1 0 01-2 0V4z" />
+    <path d="M17 16a1 1 0 01-1 1h-4a1 1 0 010-2h2.586L11 11.414V13a1 1 0 11-2 0V9a1 1 0 011-1h4a1 1 0 110 2h-2.586L15 13.586V12a1 1 0 012 0v4z" />
   </svg>
 );
 
 // Componente de ícone para sair da tela cheia
 const ExitFullscreenIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="inline-block mr-2" viewBox="0 0 16 16">
-    <path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"/>
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+    <path d="M3 3a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 5.414V7a1 1 0 11-2 0V3z" />
+    <path d="M17 17a1 1 0 01-1 1h-4a1 1 0 010-2h2.586l-2.293-2.293a1 1 0 011.414-1.414L16 14.586V13a1 1 0 112 0v4z" />
   </svg>
 );
 
@@ -29,9 +32,9 @@ export default function Home() {
   const [game, setGame] = useState<Chess>(new Chess())
   const [player1Name, setPlayer1Name] = useState('Jogador 1')
   const [player2Name, setPlayer2Name] = useState('Jogador 2')
-  const [player1Id, setPlayer1Id] = useState('')
-  const [player2Id, setPlayer2Id] = useState('')
-  const [gameMode, setGameMode] = useState<'player' | 'computer'>('player')
+  const [player1Id, setPlayer1Id] = useState<string | null>(null)
+  const [player2Id, setPlayer2Id] = useState<string | null>(null)
+  const [gameMode, setGameMode] = useState<'local' | 'online'>('local')
   const [gameStarted, setGameStarted] = useState(false)
   const [showRules, setShowRules] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -41,109 +44,98 @@ export default function Home() {
   const gameContainerRef = useRef<HTMLDivElement>(null)
 
   // Verificar se a API de tela cheia está disponível
-  const [fullscreenAvailable, setFullscreenAvailable] = useState(false)
+  const [fullscreenSupported, setFullscreenSupported] = useState(false)
 
   useEffect(() => {
-    // Verificar suporte à API de tela cheia
-    const checkFullscreenSupport = () => {
-      return document.fullscreenEnabled || 
-        (document as any).webkitFullscreenEnabled || 
-        (document as any).mozFullScreenEnabled || 
-        (document as any).msFullscreenEnabled;
-    };
+    // Verificar se o URL contém um parâmetro para mostrar o registro
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('showRegistration') === 'true') {
+      setShowRegistration(true)
+    }
+
+    // Verificar suporte a tela cheia
+    checkFullscreenSupport()
     
-    setFullscreenAvailable(checkFullscreenSupport());
-  }, []);
-
-  useEffect(() => {
-    // Evento para reiniciar apenas o jogo atual sem voltar para a tela de configuração
-    const handleRestartCurrentGame = () => {
-      setGame(new Chess());
-    };
-
-    window.addEventListener('restart-current-game', handleRestartCurrentGame);
-    
-    // Limpeza do listener quando o componente é desmontado
-    return () => {
-      window.removeEventListener('restart-current-game', handleRestartCurrentGame);
-    };
-  }, []);
-
-  // Monitorar mudanças no estado de tela cheia com suporte multi-navegador
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      const isInFullscreen = Boolean(
-        document.fullscreenElement || 
-        (document as any).webkitFullscreenElement || 
-        (document as any).mozFullScreenElement || 
-        (document as any).msFullscreenElement
-      );
-      setIsFullscreen(isInFullscreen);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    // Adicionar listener para mudanças de tela cheia
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
     
     return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
-    };
-  }, []);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    }
+  }, [])
+
+  const checkFullscreenSupport = () => {
+    const elem = document.documentElement
+    if (
+      elem.requestFullscreen ||
+      elem.webkitRequestFullscreen ||
+      // @ts-ignore
+      elem.mozRequestFullScreen ||
+      // @ts-ignore
+      elem.msRequestFullscreen
+    ) {
+      setFullscreenSupported(true)
+    }
+  }
+
+  const handleRestartCurrentGame = () => {
+    const newGame = new Chess()
+    setGame(newGame)
+  }
+
+  const handleFullscreenChange = () => {
+    setIsFullscreen(!!document.fullscreenElement)
+  }
+
+  const toggleFullscreen = () => {
+    if (!gameContainerRef.current) return
+
+    if (!document.fullscreenElement) {
+      const elem = gameContainerRef.current
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen()
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen()
+      }
+    }
+  }
 
   const handleStartGame = () => {
-    if (gameMode === 'player' && (!player1Id || !player2Id)) {
-      alert('Por favor, selecione ambos os jogadores para iniciar o jogo.');
-      return;
-    }
-    
-    setGame(new Chess())
     setGameStarted(true)
-    setGameStartTime(new Date())
+    setGame(new Chess())
+
+    // Se estiver em modo de tela cheia, ativar
+    if (isFullscreen && fullscreenSupported && gameContainerRef.current) {
+      const elem = gameContainerRef.current
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen()
+      }
+    }
   }
 
   const handleEndGame = () => {
-    if (gameStarted && gameStartTime && player1Id && player2Id) {
-      // Verificar se o jogo está em um estado final
-      if (game.isGameOver()) {
-        // Salvar o resultado do jogo
-        saveGameResult(
-          game,
-          player1Id,
-          player2Id,
-          player1Name,
-          player2Name,
-          gameStartTime
-        ).then((success) => {
-          if (success) {
-            alert('Jogo finalizado e resultado salvo!');
-          } else {
-            alert('Falha ao salvar o resultado do jogo.');
-          }
-        });
-      }
-    }
-    
     setGameStarted(false)
     setGameStartTime(null)
+    if (document.fullscreenElement) {
+      document.exitFullscreen()
+    }
   }
 
   const handleSelectPlayer1 = (id: string, name: string) => {
-    setPlayer1Id(id);
-    setPlayer1Name(name);
+    setPlayer1Id(id)
+    setPlayer1Name(name)
   }
 
   const handleSelectPlayer2 = (id: string, name: string) => {
-    setPlayer2Id(id);
-    setPlayer2Name(name);
+    setPlayer2Id(id)
+    setPlayer2Name(name)
   }
 
   const handlePlayerRegistered = () => {
-    // Atualizar a lista de jogadores após um novo registro
-    // A atualização é automática devido à forma como os componentes foram construídos
+    // Atualizar a interface após cadastro de jogador
+    setShowRegistration(false)
   }
 
   return (
@@ -172,15 +164,15 @@ export default function Home() {
                   </label>
                   <select
                     value={gameMode}
-                    onChange={(e) => setGameMode(e.target.value as 'player' | 'computer')}
+                    onChange={(e) => setGameMode(e.target.value as 'local' | 'online')}
                     className="w-full px-3 py-2 border border-wood-medium rounded-md focus:outline-none focus:ring-2 focus:ring-wood-dark"
                   >
-                    <option value="player">Jogador vs Jogador</option>
-                    <option value="computer">Jogador vs Computador</option>
+                    <option value="local">Jogador vs Jogador</option>
+                    <option value="online">Jogador vs Computador</option>
                   </select>
                 </div>
                 
-                {gameMode === 'player' ? (
+                {gameMode === 'local' ? (
                   <>
                     <PlayerSelect 
                       label="Jogador 1 (Brancas)" 
@@ -244,12 +236,12 @@ export default function Home() {
                   {showRanking ? 'Fechar Ranking' : 'Ver Ranking'}
                 </button>
 
-                <a
-                  href="/players"
+                <Link
+                  href="/cadastrar-jogador"
                   className="flex-1 bg-wood-medium text-white py-2 px-4 rounded-md hover:bg-wood-dark focus:outline-none focus:ring-2 focus:ring-wood-dark text-center"
                 >
-                  Lista de Jogadores
-                </a>
+                  Cadastro Direto
+                </Link>
               </div>
               
               {showRegistration && (

@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { toast } from 'react-hot-toast';
+import { toast, Toaster } from 'react-hot-toast';
 import { mockPlayers } from '@/lib/mock-data';
-// @ts-ignore
+// @ts-ignore - Ignorar erro de tipagem do uuid
 import { v4 as uuidv4 } from 'uuid';
 
 interface PlayerRegistrationProps {
-  onPlayerRegistered: (player: { id: string; nome: string; email?: string }) => void;
+  onPlayerRegistered?: (player: { id: string; nome: string; email?: string }) => void;
 }
 
 export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistrationProps) {
@@ -70,6 +70,7 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
       // Criar objeto de jogador
       const playerData = {
         id: playerId,
+        _id: playerId,
         nome: name,
         name: name, // Para compatibilidade
         email: email || undefined,
@@ -77,7 +78,8 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
         jogos: 0,
         vitorias: 0,
         derrotas: 0,
-        empates: 0
+        empates: 0,
+        dataCriacao: new Date().toISOString()
       };
 
       // Salvar no localStorage
@@ -95,7 +97,6 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
       localStorage.setItem('localPlayers', JSON.stringify(players));
       
       // Atualizar mockPlayers para uso imediato
-      // @ts-ignore
       mockPlayers.push(playerData);
       
       toast.success('Jogador cadastrado localmente com sucesso!');
@@ -130,9 +131,6 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
         if (success) {
           setName('');
           setEmail('');
-          
-          // Redirecionar para a página inicial
-          router.push('/');
         }
         
         setLoading(false);
@@ -158,44 +156,40 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
       
       if (!response.ok) {
         // Mensagem personalizada baseada no código de status
-        if (response.status === 409) {
+        if (response.status === 409 || (result.erro && result.erro.includes("já existe"))) {
           toast.error(`Jogador com nome '${name}' já existe`);
         } else {
-          toast.error(result.message || 'Erro ao cadastrar jogador');
+          toast.error(result.erro || 'Erro ao cadastrar jogador');
         }
+        setLoading(false);
         return;
       }
       
-      if (result.success) {
+      if (result.jogador) {
         toast.success('Jogador cadastrado com sucesso!');
         
-        if (result.data && onPlayerRegistered) {
-          onPlayerRegistered(result.data);
+        if (onPlayerRegistered) {
+          onPlayerRegistered(result.jogador);
         }
         
         setName('');
         setEmail('');
         
-        // Atualizar a página atual em vez de redirecionar
-        router.refresh();
-        
-        // Verificar se estamos na tela inicial antes de redirecionar
-        if (window.location.pathname === '/') {
-          // Mostrar toast de sucesso sem redirecionar
-          toast.success('Jogador disponível para seleção na lista');
-        } else {
-          // Redirecionar para a página inicial
-          window.location.href = '/';
+        try {
+          // Tentar atualizar o router
+          router.refresh();
+        } catch (e) {
+          console.error("Erro ao atualizar a rota:", e);
         }
       } else {
-        toast.error(result.message || 'Erro ao cadastrar jogador');
+        toast.error(result.erro || 'Erro ao cadastrar jogador');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao cadastrar jogador:', error);
       toast.error('Falha na comunicação com o servidor');
       
       // Perguntar se deseja registrar localmente
-      if (confirm('Falha na comunicação com o servidor. Deseja registrar o jogador localmente?')) {
+      if (window.confirm('Falha na comunicação com o servidor. Deseja registrar o jogador localmente?')) {
         registerPlayerLocally();
       }
     } finally {
@@ -218,100 +212,85 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
         
         if (data.database && data.database.status === 'connected') {
           setServerStatus('online');
+          toast.success('Conectado ao banco de dados com sucesso!');
           setUseMock(false);
-          toast.success('Conexão com o banco de dados restaurada!');
         } else {
           setServerStatus('offline');
-          toast.error('Problema na conexão com o banco de dados');
+          toast.error('Banco de dados indisponível');
         }
       } else {
         setServerStatus('offline');
-        toast.error('Não foi possível conectar ao servidor');
+        toast.error('Servidor indisponível');
       }
-    } catch (err) {
+    } catch (error) {
+      console.error('Erro ao verificar conexão:', error);
       setServerStatus('offline');
-      toast.error('Falha ao verificar a conexão com o servidor');
+      toast.error('Falha ao tentar conectar ao servidor');
     }
   };
 
   return (
-    <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold mb-4 text-gray-800">Cadastrar Novo Jogador</h2>
-      
-      {serverStatus === 'checking' && (
-        <div className="mb-4 text-blue-500 text-sm bg-blue-50 p-2 rounded border border-blue-200">
-          Verificando conexão com o servidor...
-        </div>
-      )}
+    <div className="bg-wood-light p-6 rounded-lg shadow-md">
+      <Toaster position="top-right" />
+      <h2 className="text-xl font-bold mb-4 text-wood-dark">Cadastro de Jogador</h2>
       
       {serverStatus === 'offline' && (
-        <div className="mb-4 text-yellow-500 text-sm bg-yellow-50 p-2 rounded border border-yellow-200">
-          Aviso: Problema na conexão com o banco de dados.
+        <div className="mb-4 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative">
+          <strong className="font-bold">Modo Offline!</strong>
+          <span className="block sm:inline"> Os dados serão salvos localmente.</span>
           <button 
             onClick={retryConnection}
-            className="ml-2 text-blue-500 underline hover:no-underline"
+            className="mt-2 bg-yellow-500 hover:bg-yellow-600 text-white py-1 px-2 rounded text-sm"
           >
-            Tentar novamente
+            Tentar conectar novamente
           </button>
-          <p className="mt-1">
-            Você pode registrar jogadores localmente, mas eles só estarão disponíveis neste dispositivo.
-          </p>
         </div>
       )}
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-            Nome
-          </label>
+          <label className="block text-wood-dark text-sm font-medium mb-1">Nome do Jogador *</label>
           <input
             type="text"
-            id="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Digite o nome do jogador"
+            className="w-full px-3 py-2 border border-wood-medium rounded-md focus:outline-none focus:ring-2 focus:ring-wood-dark"
             required
             disabled={loading}
           />
         </div>
         
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-            Email (opcional)
-          </label>
+          <label className="block text-wood-dark text-sm font-medium mb-1">Email (opcional)</label>
           <input
             type="email"
-            id="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Digite o email do jogador (opcional)"
+            className="w-full px-3 py-2 border border-wood-medium rounded-md focus:outline-none focus:ring-2 focus:ring-wood-dark"
             disabled={loading}
           />
         </div>
         
-        {serverStatus === 'offline' && (
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="use-mock"
-              checked={useMock}
-              onChange={(e) => setUseMock(e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label htmlFor="use-mock" className="ml-2 block text-sm text-gray-700">
-              Registrar apenas localmente (modo offline)
-            </label>
-          </div>
-        )}
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            id="useMock"
+            checked={useMock}
+            onChange={(e) => setUseMock(e.target.checked)}
+            className="h-4 w-4 text-wood-dark focus:ring-wood-dark border-wood-medium rounded"
+            disabled={loading || serverStatus === 'offline'}
+          />
+          <label htmlFor="useMock" className="ml-2 block text-sm text-wood-dark">
+            Salvar apenas localmente (sem enviar ao servidor)
+          </label>
+        </div>
         
         <button
           type="submit"
-          disabled={loading}
-          className={`w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+          className={`w-full bg-wood-dark text-white py-2 px-4 rounded-md hover:bg-wood-medium focus:outline-none focus:ring-2 focus:ring-wood-dark ${
             loading ? 'opacity-70 cursor-not-allowed' : ''
           }`}
+          disabled={loading}
         >
           {loading ? 'Cadastrando...' : 'Cadastrar Jogador'}
         </button>

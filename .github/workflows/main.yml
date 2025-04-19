@@ -25,7 +25,8 @@ jobs:
     - name: Build
       run: npm run build
       env:
-        MONGODB_URI: ${{ secrets.MONGODB_URI || 'mongodb://localhost:27017/xadrex' }}
+        MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        MONGODB_URI_FALLBACK: mongodb://localhost:27017/xadrex
         NODE_ENV: production
     
     - name: Cache build

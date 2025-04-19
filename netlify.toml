@@ -1,0 +1,14 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  MONGODB_URI = "mongodb://geneziodelavor:FbC38pTH2g9Kln6D@cluster0-shard-00-00.ozrtc.mongodb.net:27017,cluster0-shard-00-01.ozrtc.mongodb.net:27017,cluster0-shard-00-02.ozrtc.mongodb.net:27017/?replicaSet=atlas-ez3inn-shard-0&ssl=true&authSource=admin&retryWrites=true&w=majority&appName=Cluster0"
+  NODE_VERSION = "18"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["mongodb"] 

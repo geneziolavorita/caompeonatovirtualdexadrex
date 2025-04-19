@@ -1,7 +1,7 @@
 # Configuração básica do Netlify 
 [build] 
-  command = "npm run build" 
-  publish = ".next" 
+  command = "npm run build:static" 
+  publish = "out" 
  
 [build.environment] 
   NODE_VERSION = "18" 

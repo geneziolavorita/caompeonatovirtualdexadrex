@@ -1,35 +1,71 @@
+/**
+ * mock-data.ts
+ * Dados simulados para uso quando o servidor está offline
+ */
+
+/**
+ * Jogadores simulados para o modo offline
+ */
 export const mockPlayers = [
   {
-    _id: '1',
-    nome: 'Jogador 1',
-    name: 'Player 1',
-    pontuacao: 1000,
-    jogos: 10,
-    vitorias: 5,
-    derrotas: 3,
+    _id: 'mock-player-1',
+    nome: 'Carlos Magno',
+    name: 'Carlos Magno',
+    email: 'carlos@example.com',
+    pontuacao: 1500,
+    jogos: 25,
+    vitorias: 15,
+    derrotas: 8,
     empates: 2
   },
   {
-    _id: '2',
-    nome: 'Jogador 2',
-    name: 'Player 2',
-    pontuacao: 950,
-    jogos: 8,
-    vitorias: 4,
-    derrotas: 2,
-    empates: 2
+    _id: 'mock-player-2',
+    nome: 'Maria Silva',
+    name: 'Maria Silva',
+    email: 'maria@example.com',
+    pontuacao: 1650,
+    jogos: 42,
+    vitorias: 24,
+    derrotas: 12,
+    empates: 6
   },
   {
-    _id: '3',
-    nome: 'Jogador 3',
-    name: 'Player 3',
-    pontuacao: 800,
-    jogos: 5,
-    vitorias: 2,
-    derrotas: 2,
-    empates: 1
+    _id: 'mock-player-3',
+    nome: 'João Pereira',
+    name: 'João Pereira',
+    email: 'joao@example.com',
+    pontuacao: 1420,
+    jogos: 16,
+    vitorias: 7,
+    derrotas: 7,
+    empates: 2
   }
 ];
+
+/**
+ * Função para obter jogadores simulados
+ * @returns Array de jogadores simulados
+ */
+export function getMockPlayers() {
+  return [...mockPlayers];
+}
+
+/**
+ * Função para encontrar um jogador simulado por ID
+ * @param id ID do jogador
+ * @returns Jogador encontrado ou undefined
+ */
+export function getMockPlayerById(id: string) {
+  return mockPlayers.find(player => player._id === id);
+}
+
+/**
+ * Função para simular a classificação dos jogadores (ranking)
+ * @returns Array de jogadores ordenados por pontuação
+ */
+export function getMockRanking() {
+  return [...mockPlayers].sort((a, b) => b.pontuacao - a.pontuacao);
+}
 
 export const mockGames = [
   {

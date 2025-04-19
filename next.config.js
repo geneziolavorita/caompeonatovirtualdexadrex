@@ -3,6 +3,7 @@
 const nextConfig = {
   reactStrictMode: false,
   swcMinify: true,
+  output: 'export',
   
   // Configuração para trabalhar com MongoDB
   webpack: (config) => {

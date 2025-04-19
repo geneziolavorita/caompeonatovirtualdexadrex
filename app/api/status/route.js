@@ -31,10 +31,10 @@ export async function GET() {
           console.warn('Não foi possível obter versão do MongoDB:', infoError);
         }
       }
-    } catch (dbError) {
-      console.error('Erro ao conectar ao MongoDB:', dbError);
+    } catch (dbErr) {
+      console.error('Erro ao conectar ao MongoDB:', dbErr);
       dbStatus = 'error';
-      dbError = dbError.message;
+      dbError = dbErr.message;
     }
     
     // Informações de sistema
@@ -45,7 +45,8 @@ export async function GET() {
       arch: os.arch(),
       freemem: Math.round(os.freemem() / (1024 * 1024)) + "MB",
       totalmem: Math.round(os.totalmem() / (1024 * 1024)) + "MB",
-      uptime: Math.round(os.uptime() / 60) + " minutos"
+      uptime: Math.round(os.uptime() / 60) + " minutos",
+      nodeEnv: process.env.NODE_ENV || 'development'
     };
     
     return NextResponse.json({
@@ -57,8 +58,10 @@ export async function GET() {
         type: 'MongoDB',
         status: dbStatus,
         version: dbVersion,
-        error: dbError
-      }
+        error: dbError,
+        connectionString: process.env.MONGODB_URI ? 'Configurado' : 'Não configurado'
+      },
+      success: true
     });
   } catch (error) {
     console.error('Erro ao verificar status do sistema:', error);
@@ -66,7 +69,8 @@ export async function GET() {
     return NextResponse.json({
       status: 'error',
       message: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      success: false
     }, { status: 500 });
   }
 } 

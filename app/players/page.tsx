@@ -43,9 +43,10 @@ function PlayersPage() {
         
         if (response.ok) {
           const data = await response.json();
+          console.log('Dados recebidos da API:', data);
           
-          if (data.success && Array.isArray(data.data)) {
-            setPlayers(data.data);
+          if (data.jogadores) {
+            setPlayers(data.jogadores);
           } else {
             throw new Error('Formato de dados inválido');
           }
@@ -55,6 +56,19 @@ function PlayersPage() {
       } catch (err: any) {
         console.error('Erro ao buscar jogadores:', err);
         setError(err.message || 'Erro ao carregar jogadores');
+        
+        // Tentar carregar jogadores do localStorage se a API falhar
+        try {
+          const localPlayers = localStorage.getItem('localPlayers');
+          if (localPlayers) {
+            const parsedPlayers = JSON.parse(localPlayers);
+            setPlayers(parsedPlayers);
+            toast.success('Carregados jogadores locais');
+            setError('');
+          }
+        } catch (localErr) {
+          console.error('Erro ao carregar jogadores locais:', localErr);
+        }
       } finally {
         setLoading(false);
       }
@@ -80,9 +94,21 @@ function PlayersPage() {
         toast.success('Jogador excluído com sucesso');
         // Atualizar a lista de jogadores
         setPlayers(players.filter(player => (player._id || player.id) !== id));
+        
+        // Também remover do localStorage se existir
+        try {
+          const localPlayers = localStorage.getItem('localPlayers');
+          if (localPlayers) {
+            const parsedPlayers = JSON.parse(localPlayers);
+            const updatedPlayers = parsedPlayers.filter((p: any) => p.id !== id);
+            localStorage.setItem('localPlayers', JSON.stringify(updatedPlayers));
+          }
+        } catch (localErr) {
+          console.error('Erro ao atualizar jogadores locais:', localErr);
+        }
       } else {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao excluir jogador');
+        throw new Error(errorData.erro || 'Erro ao excluir jogador');
       }
     } catch (err: any) {
       console.error('Erro ao excluir jogador:', err);
@@ -112,7 +138,7 @@ function PlayersPage() {
     );
   }
 
-  if (error) {
+  if (error && players.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Toaster position="top-right" />
@@ -134,10 +160,23 @@ function PlayersPage() {
       <Toaster position="top-right" />
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-wood-dark">Jogadores Cadastrados</h1>
-        <Link href="/" className="px-4 py-2 bg-wood-dark text-white rounded hover:bg-wood-medium">
-          Voltar
-        </Link>
+        <div className="flex space-x-2">
+          <Link href="/" className="px-4 py-2 bg-wood-dark text-white rounded hover:bg-wood-medium">
+            Voltar
+          </Link>
+          <Link href="/?showRegistration=true" className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+            Novo Jogador
+          </Link>
+        </div>
       </div>
+      
+      {error && (
+        <div className="mb-4 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+          <p className="font-bold">Aviso</p>
+          <p>{error}</p>
+          <p>Mostrando dados disponíveis localmente.</p>
+        </div>
+      )}
 
       {players.length === 0 ? (
         <div className="text-center py-8 bg-wood-lightest rounded-lg">

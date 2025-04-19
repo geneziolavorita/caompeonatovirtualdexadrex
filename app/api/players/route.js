@@ -1,6 +1,7 @@
 import { connectToDB } from '@/lib/mongodb';
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
+import { ObjectId } from 'mongodb';
 
 // Cache para armazenar jogadores
 let cachedPlayers = null;
@@ -237,10 +238,22 @@ export async function PUT(request) {
       }, { status: 503 });
     }
     
+    // Preparar a query com tratamento adequado para ObjectId
+    let query;
+    try {
+      // Verificar se o ID parece ser um ObjectId válido
+      if (/^[0-9a-fA-F]{24}$/.test(dados.id)) {
+        query = { _id: new ObjectId(dados.id) };
+      } else {
+        query = { $or: [{ _id: dados.id }, { id: dados.id }] };
+      }
+    } catch (idErr) {
+      // Se falhar na conversão, use como string
+      query = { $or: [{ _id: dados.id }, { id: dados.id }] };
+    }
+    
     // Verificar se jogador existe
-    const jogadorExistente = await dbConnection.collection('players').findOne({ 
-      _id: { $eq: dados.id } 
-    });
+    const jogadorExistente = await dbConnection.collection('players').findOne(query);
     
     if (!jogadorExistente) {
       return NextResponse.json({ 
@@ -259,9 +272,9 @@ export async function PUT(request) {
     if (dados.derrotas !== undefined) atualizacao.derrotas = dados.derrotas;
     if (dados.empates !== undefined) atualizacao.empates = dados.empates;
     
-    // Atualizar no banco de dados
+    // Atualizar no banco de dados usando a mesma query
     const result = await dbConnection.collection('players').updateOne(
-      { _id: { $eq: dados.id } },
+      query,
       { $set: atualizacao }
     );
     
@@ -312,10 +325,22 @@ export async function DELETE(request) {
       }, { status: 503 });
     }
     
+    // Preparar a query com tratamento adequado para ObjectId
+    let query;
+    try {
+      // Verificar se o ID parece ser um ObjectId válido
+      if (/^[0-9a-fA-F]{24}$/.test(id)) {
+        query = { _id: new ObjectId(id) };
+      } else {
+        query = { $or: [{ _id: id }, { id: id }] };
+      }
+    } catch (idErr) {
+      // Se falhar na conversão, use como string
+      query = { $or: [{ _id: id }, { id: id }] };
+    }
+    
     // Remover jogador
-    const result = await dbConnection.collection('players').deleteOne({ 
-      _id: { $eq: id } 
-    });
+    const result = await dbConnection.collection('players').deleteOne(query);
     
     if (!result.acknowledged) {
       return NextResponse.json({ 

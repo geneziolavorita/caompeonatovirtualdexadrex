@@ -1,257 +1,287 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
-import Player from '@/models/Player';
+import { conectarDB } from "@/lib/db";
+import mongoose from 'mongoose';
+import { mockPlayers, getMockPlayerById, updateMockPlayer, deleteMockPlayer } from "@/lib/mock-data";
+import { v4 as uuidv4 } from 'uuid';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// GET - Listar todos os jogadores
-export async function GET() {
+// Função para verificar se o MongoDB está disponível
+async function isMongoDBAvailable() {
   try {
-    console.log('API: Obtendo lista de jogadores do MongoDB');
-    
-    // Conectar ao banco de dados
-    await dbConnect();
-    
-    // Buscar todos os jogadores
-    const players = await Player.find({}).sort({ pontuacao: -1 });
-    
-    return NextResponse.json({
-      success: true,
-      data: players,
-      count: players.length,
-      timestamp: new Date().toISOString()
-    });
+    // Tenta conectar ao MongoDB
+    await conectarDB();
+    return mongoose.connection.readyState === 1; // 1 significa conectado
   } catch (error) {
-    console.error('Erro ao obter jogadores:', error);
+    console.log("Erro ao verificar disponibilidade do MongoDB:", error);
+    return false;
+  }
+}
+
+// GET - Listar todos os jogadores
+export async function GET(request) {
+  try {
+    // Verificar se o MongoDB está disponível
+    const mongoAvailable = await isMongoDBAvailable();
     
-    return NextResponse.json({
-      success: false,
-      message: error.message || 'Erro interno ao buscar jogadores',
-      timestamp: new Date().toISOString()
-    }, { status: 500 });
+    if (mongoAvailable) {
+      // Conectar ao MongoDB
+      await conectarDB();
+      
+      // Obter o modelo de Player (definido na função conectarDB)
+      const Player = mongoose.models.Player;
+      
+      // Buscar todos os jogadores do banco de dados
+      const jogadores = await Player.find({}).sort({ pontuacao: -1 });
+      
+      // Retornar a lista de jogadores
+      return NextResponse.json({ jogadores }, { status: 200 });
+    } else {
+      // MongoDB não está disponível, usar dados mock
+      console.log("MongoDB não disponível. Usando dados mock para jogadores.");
+      return NextResponse.json({ jogadores: mockPlayers }, { status: 200 });
+    }
+  } catch (error) {
+    console.error("Erro ao listar jogadores:", error);
+    return NextResponse.json(
+      { erro: "Erro ao listar jogadores", detalhes: error.message },
+      { status: 500 }
+    );
   }
 }
 
 // POST - Criar um novo jogador
 export async function POST(request) {
   try {
-    console.log('API: Criando novo jogador no MongoDB');
+    // Obter os dados da requisição
+    const dados = await request.json();
     
-    // Obter dados do request
-    let data;
-    try {
-      data = await request.json();
-      console.log('Dados recebidos do frontend:', data);
-    } catch (parseError) {
-      console.error('Erro ao fazer parse dos dados da requisição:', parseError);
-      return NextResponse.json({
-        success: false,
-        message: 'Dados inválidos no corpo da requisição',
-        timestamp: new Date().toISOString()
-      }, { status: 400 });
+    // Validar os dados recebidos
+    if (!dados.nome) {
+      return NextResponse.json(
+        { erro: "O nome do jogador é obrigatório" },
+        { status: 400 }
+      );
     }
     
-    // Validar dados mínimos
-    if (!data.nome) {
-      return NextResponse.json({
-        success: false,
-        message: 'Nome do jogador é obrigatório',
-        timestamp: new Date().toISOString()
-      }, { status: 400 });
+    // Verificar se o MongoDB está disponível
+    const mongoAvailable = await isMongoDBAvailable();
+    
+    if (mongoAvailable) {
+      // Conectar ao MongoDB
+      await conectarDB();
+      
+      // Obter o modelo de Player
+      const Player = mongoose.models.Player;
+      
+      // Verificar se já existe um jogador com o mesmo nome
+      const jogadorExistente = await Player.findOne({ nome: dados.nome });
+      
+      if (jogadorExistente) {
+        return NextResponse.json(
+          { erro: "Já existe um jogador com este nome" },
+          { status: 400 }
+        );
+      }
+      
+      // Criar um novo jogador com dados iniciais
+      const novoJogador = new Player({
+        nome: dados.nome,
+        pontuacao: 0,
+        jogos: 0,
+        vitorias: 0,
+        derrotas: 0,
+        empates: 0,
+        dataCriacao: new Date()
+      });
+      
+      // Salvar o jogador no banco de dados
+      await novoJogador.save();
+      
+      // Retornar o jogador criado
+      return NextResponse.json({ jogador: novoJogador }, { status: 201 });
+    } else {
+      // MongoDB não está disponível, usar dados mock
+      console.log("MongoDB não disponível. Criando jogador mock.");
+      
+      // Verificar se já existe um jogador com o mesmo nome
+      const jogadorExistente = mockPlayers.find(player => player.nome === dados.nome);
+      
+      if (jogadorExistente) {
+        return NextResponse.json(
+          { erro: "Já existe um jogador com este nome" },
+          { status: 400 }
+        );
+      }
+      
+      // Criar ID único para o jogador mock
+      const id = uuidv4();
+      
+      // Criar um novo jogador mock
+      const novoJogador = {
+        _id: id,
+        id: id,
+        nome: dados.nome,
+        name: dados.nome, // Duplicar para compatibilidade
+        pontuacao: 0,
+        jogos: 0,
+        vitorias: 0,
+        derrotas: 0,
+        empates: 0,
+        dataCriacao: new Date().toISOString()
+      };
+      
+      // Adicionar o jogador ao array de dados mock
+      mockPlayers.push(novoJogador);
+      
+      // Retornar o jogador criado
+      return NextResponse.json({ jogador: novoJogador }, { status: 201 });
     }
-    
-    // Conectar ao banco de dados
-    await dbConnect();
-    
-    // Verificar se o jogador já existe
-    const playerExists = await Player.findOne({
-      $or: [
-        { nome: { $regex: new RegExp(`^${data.nome}$`, 'i') } },
-        { name: { $regex: new RegExp(`^${data.nome}$`, 'i') } }
-      ]
-    });
-    
-    if (playerExists) {
-      return NextResponse.json({
-        success: false,
-        message: `Jogador com nome '${data.nome}' já existe`,
-        timestamp: new Date().toISOString()
-      }, { status: 409 });
-    }
-    
-    // Criar novo jogador
-    const newPlayer = new Player({
-      nome: data.nome,
-      name: data.nome, // Para compatibilidade
-      email: data.email || undefined,
-      pontuacao: 0,
-      jogos: 0,
-      vitorias: 0,
-      derrotas: 0,
-      empates: 0
-    });
-    
-    // Salvar no banco de dados
-    await newPlayer.save();
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Jogador criado com sucesso',
-      data: newPlayer,
-      timestamp: new Date().toISOString()
-    }, { status: 201 });
   } catch (error) {
-    console.error('Erro ao criar jogador:', error);
-    
-    return NextResponse.json({
-      success: false,
-      message: error.message || 'Erro interno ao criar jogador',
-      timestamp: new Date().toISOString()
-    }, { status: 500 });
+    console.error("Erro ao criar jogador:", error);
+    return NextResponse.json(
+      { erro: "Erro ao criar jogador", detalhes: error.message },
+      { status: 500 }
+    );
   }
 }
 
-// PUT - Atualizar um jogador
+// PUT - Atualizar um jogador existente
 export async function PUT(request) {
   try {
-    console.log('API: Atualizando jogador no MongoDB');
-    
-    // Obter dados do request
-    let data;
-    try {
-      data = await request.json();
-    } catch (parseError) {
-      return NextResponse.json({
-        success: false,
-        message: 'Dados inválidos no corpo da requisição',
-        timestamp: new Date().toISOString()
-      }, { status: 400 });
-    }
+    // Obter os dados da requisição
+    const dados = await request.json();
     
     // Validar ID do jogador
-    if (!data.id) {
-      return NextResponse.json({
-        success: false,
-        message: 'ID do jogador é obrigatório',
-        timestamp: new Date().toISOString()
-      }, { status: 400 });
+    if (!dados.id) {
+      return NextResponse.json(
+        { erro: "ID do jogador é obrigatório" },
+        { status: 400 }
+      );
     }
     
-    // Conectar ao banco de dados
-    await dbConnect();
+    // Verificar se o MongoDB está disponível
+    const mongoAvailable = await isMongoDBAvailable();
     
-    // Encontrar o jogador
-    const player = await Player.findById(data.id);
-    
-    if (!player) {
-      return NextResponse.json({
-        success: false,
-        message: `Jogador com ID ${data.id} não encontrado`,
-        timestamp: new Date().toISOString()
-      }, { status: 404 });
-    }
-    
-    // Se estiver tentando atualizar o nome, verificar se já existe
-    if (data.nome && data.nome !== player.nome) {
-      const nameExists = await Player.findOne({
-        _id: { $ne: data.id },
-        $or: [
-          { nome: { $regex: new RegExp(`^${data.nome}$`, 'i') } },
-          { name: { $regex: new RegExp(`^${data.nome}$`, 'i') } }
-        ]
-      });
+    if (mongoAvailable) {
+      // Conectar ao MongoDB
+      await conectarDB();
       
-      if (nameExists) {
-        return NextResponse.json({
-          success: false,
-          message: `Jogador com nome '${data.nome}' já existe`,
-          timestamp: new Date().toISOString()
-        }, { status: 409 });
+      // Obter o modelo de Player
+      const Player = mongoose.models.Player;
+      
+      // Encontrar e atualizar o jogador
+      const jogadorAtualizado = await Player.findByIdAndUpdate(
+        dados.id,
+        { $set: dados },
+        { new: true }
+      );
+      
+      // Verificar se o jogador foi encontrado
+      if (!jogadorAtualizado) {
+        return NextResponse.json(
+          { erro: "Jogador não encontrado" },
+          { status: 404 }
+        );
       }
+      
+      // Retornar o jogador atualizado
+      return NextResponse.json({ jogador: jogadorAtualizado }, { status: 200 });
+    } else {
+      // MongoDB não está disponível, usar dados mock
+      console.log("MongoDB não disponível. Atualizando jogador mock.");
+      
+      // Atualizar jogador nos dados mock
+      const jogadorAtualizado = updateMockPlayer(dados.id, dados);
+      
+      // Verificar se o jogador foi encontrado
+      if (!jogadorAtualizado) {
+        return NextResponse.json(
+          { erro: "Jogador não encontrado" },
+          { status: 404 }
+        );
+      }
+      
+      // Retornar o jogador atualizado
+      return NextResponse.json({ jogador: jogadorAtualizado }, { status: 200 });
     }
-    
-    // Atualizar campos
-    if (data.nome) {
-      player.nome = data.nome;
-      player.name = data.nome; // Para compatibilidade
-    }
-    
-    if (data.email !== undefined) {
-      player.email = data.email;
-    }
-    
-    // Atualizar estatísticas se fornecidas
-    if (data.pontuacao !== undefined) player.pontuacao = data.pontuacao;
-    if (data.jogos !== undefined) player.jogos = data.jogos;
-    if (data.vitorias !== undefined) player.vitorias = data.vitorias;
-    if (data.derrotas !== undefined) player.derrotas = data.derrotas;
-    if (data.empates !== undefined) player.empates = data.empates;
-    
-    // Salvar alterações
-    await player.save();
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Jogador atualizado com sucesso',
-      data: player,
-      timestamp: new Date().toISOString()
-    });
   } catch (error) {
-    console.error('Erro ao atualizar jogador:', error);
-    
-    return NextResponse.json({
-      success: false,
-      message: error.message || 'Erro interno ao atualizar jogador',
-      timestamp: new Date().toISOString()
-    }, { status: 500 });
+    console.error("Erro ao atualizar jogador:", error);
+    return NextResponse.json(
+      { erro: "Erro ao atualizar jogador", detalhes: error.message },
+      { status: 500 }
+    );
   }
 }
 
 // DELETE - Remover um jogador
 export async function DELETE(request) {
   try {
-    console.log('API: Removendo jogador do MongoDB');
+    // Obter os dados da requisição
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
     
-    // Obter URL da requisição
-    const url = new URL(request.url);
-    const id = url.searchParams.get('id');
-    
+    // Validar ID do jogador
     if (!id) {
-      return NextResponse.json({
-        success: false,
-        message: 'ID do jogador é obrigatório',
-        timestamp: new Date().toISOString()
-      }, { status: 400 });
+      return NextResponse.json(
+        { erro: "ID do jogador é obrigatório" },
+        { status: 400 }
+      );
     }
     
-    // Conectar ao banco de dados
-    await dbConnect();
+    // Verificar se o MongoDB está disponível
+    const mongoAvailable = await isMongoDBAvailable();
     
-    // Encontrar e remover o jogador
-    const deletedPlayer = await Player.findByIdAndDelete(id);
-    
-    if (!deletedPlayer) {
-      return NextResponse.json({
-        success: false,
-        message: `Jogador com ID ${id} não encontrado`,
-        timestamp: new Date().toISOString()
-      }, { status: 404 });
+    if (mongoAvailable) {
+      // Conectar ao MongoDB
+      await conectarDB();
+      
+      // Obter o modelo de Player
+      const Player = mongoose.models.Player;
+      
+      // Encontrar e remover o jogador
+      const jogadorRemovido = await Player.findByIdAndDelete(id);
+      
+      // Verificar se o jogador foi encontrado
+      if (!jogadorRemovido) {
+        return NextResponse.json(
+          { erro: "Jogador não encontrado" },
+          { status: 404 }
+        );
+      }
+      
+      // Retornar sucesso
+      return NextResponse.json(
+        { mensagem: "Jogador removido com sucesso" },
+        { status: 200 }
+      );
+    } else {
+      // MongoDB não está disponível, usar dados mock
+      console.log("MongoDB não disponível. Removendo jogador mock.");
+      
+      // Remover jogador dos dados mock
+      const jogadorRemovido = deleteMockPlayer(id);
+      
+      // Verificar se o jogador foi encontrado
+      if (!jogadorRemovido) {
+        return NextResponse.json(
+          { erro: "Jogador não encontrado" },
+          { status: 404 }
+        );
+      }
+      
+      // Retornar sucesso
+      return NextResponse.json(
+        { mensagem: "Jogador removido com sucesso" },
+        { status: 200 }
+      );
     }
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Jogador removido com sucesso',
-      data: deletedPlayer,
-      timestamp: new Date().toISOString()
-    });
   } catch (error) {
-    console.error('Erro ao remover jogador:', error);
-    
-    return NextResponse.json({
-      success: false,
-      message: error.message || 'Erro interno ao remover jogador',
-      timestamp: new Date().toISOString()
-    }, { status: 500 });
+    console.error("Erro ao remover jogador:", error);
+    return NextResponse.json(
+      { erro: "Erro ao remover jogador", detalhes: error.message },
+      { status: 500 }
+    );
   }
 } 

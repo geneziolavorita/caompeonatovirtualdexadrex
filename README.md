@@ -18,6 +18,7 @@ Um aplicativo de xadrez com interface amigável que permite jogar contra outro j
 - TypeScript
 - TailwindCSS para estilização
 - Chess.js para lógica do jogo de xadrez
+- MongoDB para armazenamento de dados
 
 ## Como Executar
 
@@ -26,17 +27,19 @@ Um aplicativo de xadrez com interface amigável que permite jogar contra outro j
    ```
    npm install
    ```
-3. Execute o servidor de desenvolvimento:
+3. Configure o MongoDB (veja MONGODB_SETUP.md)
+4. Execute o servidor de desenvolvimento:
    ```
    npm run dev
    ```
-4. Acesse o aplicativo em: [http://localhost:3000](http://localhost:3000)
+5. Acesse o aplicativo em: [http://localhost:3000](http://localhost:3000)
 
 ## Estrutura do Projeto
 
 - `/app` - Páginas da aplicação Next.js
 - `/components` - Componentes React reutilizáveis
 - `/lib` - Lógica do jogo e algoritmos
+- `/models` - Modelos de dados para MongoDB
 - `/public/pieces` - Imagens SVG das peças de xadrez
 
 ## Design
@@ -45,4 +48,16 @@ O design do aplicativo é inspirado em aplicativos de xadrez populares com:
 - Preto e branco para o tabuleiro
 - Acentos em dourado para detalhes
 - Tonalidades de madeira para o cenário
-- Gradientes sutis para profundidade 
+- Gradientes sutis para profundidade
+
+## Scripts de Desenvolvimento
+
+- `git-commit.bat` - Facilita o processo de commit das alterações
+- `git-push.bat` - Automatiza o processo de enviar alterações para o GitHub
+- `push-github.bat` - Versão simplificada para enviar para o GitHub
+- `npm-clean.bat` - Limpa caches e reinstala dependências (solução de problemas)
+- `scripts/check-mongodb.js` - Verifica se o MongoDB está instalado e configurado
+
+## CI/CD
+
+O projeto utiliza GitHub Actions para automação de integração contínua. Veja o arquivo `.github/workflows/main.yml` para mais detalhes 

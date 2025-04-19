@@ -1,20 +1,11 @@
 /** @type {import('next').NextConfig} */
+
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  // Configuração para corrigir erro de webpack
+  // Removendo as configurações experimentais problemáticas
   webpack: (config, { isServer }) => {
-    // Configurações específicas para o MongoDB
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-        dns: false,
-      };
-    }
-    
+    // Ajustes adicionais do webpack se necessário
     return config;
   },
   // Configuração para Netlify

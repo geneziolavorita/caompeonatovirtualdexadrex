@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build && cp -r public/* .next/",
+    "build:static": "next build",
     "start": "next start",
     "lint": "next lint",
     "check-mongodb": "node scripts/check-mongodb.js"

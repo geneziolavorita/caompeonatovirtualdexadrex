@@ -4,9 +4,24 @@
  */
 
 /**
+ * Interface para definir a estrutura de um jogador
+ */
+export interface MockPlayer {
+  _id: string;
+  nome: string;
+  name: string;
+  email?: string;  // Email agora é opcional
+  pontuacao: number;
+  jogos: number;
+  vitorias: number;
+  derrotas: number;
+  empates: number;
+}
+
+/**
  * Jogadores simulados para o modo offline
  */
-export const mockPlayers = [
+export const mockPlayers: MockPlayer[] = [
   {
     _id: 'mock-player-1',
     nome: 'Carlos Magno',

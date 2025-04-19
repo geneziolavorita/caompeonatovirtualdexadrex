@@ -1,21 +1,61 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'react-hot-toast';
+import { mockPlayers } from '@/lib/mock-data';
 
 export default function CreateGameRoom() {
   const router = useRouter();
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
+  const [isJoiningRoom, setIsJoiningRoom] = useState(false);
+  const [players, setPlayers] = useState([]);
+  const [selectedPlayer, setSelectedPlayer] = useState('');
+  const [playerName, setPlayerName] = useState('');
+  const [roomIdInput, setRoomIdInput] = useState('');
+
+  useEffect(() => {
+    // Carregar jogadores do mockData para simplificar
+    setPlayers(mockPlayers);
+    
+    // Tentar carregar jogador do localStorage, se existir
+    const storedPlayerId = localStorage.getItem('playerId');
+    const storedPlayerName = localStorage.getItem('playerName');
+    
+    if (storedPlayerId && storedPlayerName) {
+      setSelectedPlayer(storedPlayerId);
+      setPlayerName(storedPlayerName);
+    }
+  }, []);
+
+  const handlePlayerSelect = (e) => {
+    const playerId = e.target.value;
+    setSelectedPlayer(playerId);
+    
+    if (playerId) {
+      const player = players.find(p => p.id.toString() === playerId);
+      if (player) {
+        setPlayerName(player.name);
+      }
+    } else {
+      setPlayerName('');
+    }
+  };
+
+  // Função para salvar o jogador no localStorage
+  const savePlayerToLocalStorage = () => {
+    if (selectedPlayer && playerName) {
+      localStorage.setItem('playerId', selectedPlayer);
+      localStorage.setItem('playerName', playerName);
+      return true;
+    }
+    return false;
+  };
 
   // Função para criar uma nova sala de jogo
   const createNewGameRoom = () => {
-    // Verificar se o jogador está logado
-    const playerId = localStorage.getItem('playerId');
-    const playerName = localStorage.getItem('playerName');
-
-    if (!playerId || !playerName) {
+    if (!selectedPlayer) {
       toast.error('Por favor, selecione um jogador antes de criar uma sala');
       return;
     }
@@ -23,6 +63,9 @@ export default function CreateGameRoom() {
     setIsCreatingRoom(true);
 
     try {
+      // Salvar jogador selecionado no localStorage
+      savePlayerToLocalStorage();
+      
       // Gerar um ID único para a sala
       const roomId = uuidv4().substring(0, 8);
       
@@ -39,29 +82,52 @@ export default function CreateGameRoom() {
   const joinExistingRoom = (e) => {
     e.preventDefault();
     
-    // Verificar se o jogador está logado
-    const playerId = localStorage.getItem('playerId');
-    const playerName = localStorage.getItem('playerName');
-
-    if (!playerId || !playerName) {
+    if (!selectedPlayer) {
       toast.error('Por favor, selecione um jogador antes de entrar em uma sala');
       return;
     }
     
-    const roomId = e.target.roomId.value.trim();
-    
-    if (!roomId) {
+    if (!roomIdInput) {
       toast.error('Por favor, digite o código da sala');
       return;
     }
     
-    // Redirecionar para a sala de jogo
-    router.push(`/game/${roomId}`);
+    setIsJoiningRoom(true);
+    
+    try {
+      // Salvar jogador selecionado no localStorage
+      savePlayerToLocalStorage();
+      
+      // Redirecionar para a sala de jogo
+      router.push(`/game/${roomIdInput}`);
+    } catch (error) {
+      console.error('Erro ao entrar na sala:', error);
+      toast.error('Não foi possível entrar na sala. Tente novamente.');
+      setIsJoiningRoom(false);
+    }
   };
 
   return (
     <div className="bg-wood-light rounded-lg shadow-md p-6 mb-6">
       <h2 className="text-xl font-bold mb-4 text-wood-dark">Jogar Online</h2>
+      
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-wood-dark mb-1">
+          Selecione seu jogador
+        </label>
+        <select
+          value={selectedPlayer}
+          onChange={handlePlayerSelect}
+          className="w-full px-3 py-2 border border-wood-medium rounded-md focus:outline-none focus:ring-2 focus:ring-wood-dark mb-4"
+        >
+          <option value="">Selecione um jogador</option>
+          {players.map((player) => (
+            <option key={player.id} value={player.id.toString()}>
+              {player.name}
+            </option>
+          ))}
+        </select>
+      </div>
       
       <div className="space-y-4">
         <div>
@@ -71,9 +137,9 @@ export default function CreateGameRoom() {
           
           <button
             onClick={createNewGameRoom}
-            disabled={isCreatingRoom}
+            disabled={isCreatingRoom || !selectedPlayer}
             className={`w-full px-4 py-2 rounded ${
-              isCreatingRoom 
+              isCreatingRoom || !selectedPlayer
                 ? 'bg-gray-300 cursor-not-allowed' 
                 : 'bg-wood-dark text-white hover:bg-wood-medium'
             }`}
@@ -90,16 +156,22 @@ export default function CreateGameRoom() {
           <form onSubmit={joinExistingRoom} className="flex">
             <input
               type="text"
-              name="roomId"
+              value={roomIdInput}
+              onChange={(e) => setRoomIdInput(e.target.value)}
               placeholder="Digite o código da sala"
               className="flex-grow px-3 py-2 border border-wood-medium rounded-l focus:outline-none focus:ring-2 focus:ring-wood-dark"
               required
             />
             <button
               type="submit"
-              className="px-4 py-2 bg-wood-dark text-white rounded-r hover:bg-wood-medium"
+              disabled={isJoiningRoom || !selectedPlayer || !roomIdInput}
+              className={`px-4 py-2 rounded-r ${
+                isJoiningRoom || !selectedPlayer || !roomIdInput
+                  ? 'bg-gray-300 cursor-not-allowed'
+                  : 'bg-wood-dark text-white hover:bg-wood-medium'
+              }`}
             >
-              Entrar
+              {isJoiningRoom ? 'Entrando...' : 'Entrar'}
             </button>
           </form>
         </div>

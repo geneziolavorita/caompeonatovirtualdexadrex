@@ -183,14 +183,12 @@ export default function Home() {
                 {gameMode === 'player' ? (
                   <>
                     <PlayerSelect 
-                      label="Jogador 1 (Brancas)" 
-                      value={player1Id} 
-                      onChange={handleSelectPlayer1} 
+                      onSelect={(player) => handleSelectPlayer1(player._id, player.name)}
+                      selectedPlayer={players.find(p => p._id === player1Id)}
                     />
                     <PlayerSelect 
-                      label="Jogador 2 (Pretas)" 
-                      value={player2Id} 
-                      onChange={handleSelectPlayer2} 
+                      onSelect={(player) => handleSelectPlayer2(player._id, player.name)}
+                      selectedPlayer={players.find(p => p._id === player2Id)}
                     />
                   </>
                 ) : (

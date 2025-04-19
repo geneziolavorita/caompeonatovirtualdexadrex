@@ -57,6 +57,22 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
     checkServerStatus();
   }, []);
 
+  const notifyPlayerRegistered = () => {
+    // Disparar evento personalizado para notificar outros componentes
+    const event = new CustomEvent('playerRegistered', { 
+      bubbles: true, 
+      detail: { timestamp: new Date().getTime() } 
+    });
+    document.dispatchEvent(event);
+    
+    // Forçar atualização visual imediata
+    try {
+      router.refresh();
+    } catch (e) {
+      console.error("Erro ao atualizar a rota:", e);
+    }
+  };
+
   const registerPlayerLocally = () => {
     if (!name.trim()) {
       toast.error('Por favor, digite o nome do jogador');
@@ -100,6 +116,9 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
       mockPlayers.push(playerData);
       
       toast.success('Jogador cadastrado localmente com sucesso!');
+      
+      // Notificar outros componentes
+      notifyPlayerRegistered();
       
       if (onPlayerRegistered) {
         onPlayerRegistered(playerData);
@@ -167,6 +186,9 @@ export default function PlayerRegistration({ onPlayerRegistered }: PlayerRegistr
       
       if (result.jogador) {
         toast.success('Jogador cadastrado com sucesso!');
+        
+        // Notificar outros componentes
+        notifyPlayerRegistered();
         
         if (onPlayerRegistered) {
           onPlayerRegistered(result.jogador);

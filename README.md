@@ -27,7 +27,10 @@ Um aplicativo de xadrez com interface amigável que permite jogar contra outro j
    ```
    npm install
    ```
-3. Configure o MongoDB (veja MONGODB_SETUP.md)
+3. Configure o MongoDB:
+   - Crie um arquivo `.env.local` com as variáveis de ambiente necessárias (veja `.env.example`)
+   - Ou execute `node scripts/check-mongodb-config.js` para verificar a configuração
+   - Para mais detalhes, veja o [Guia de Configuração do MongoDB](MONGODB_SETUP.md)
 4. Execute o servidor de desenvolvimento:
    ```
    npm run dev

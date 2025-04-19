@@ -4,7 +4,7 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   
-  // Configuração básica para evitar avisos
+  // Configuração para trabalhar com MongoDB
   webpack: (config) => {
     // Adicionar fallbacks para módulos Node.js em componentes cliente
     config.resolve.fallback = {

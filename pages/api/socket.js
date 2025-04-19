@@ -6,7 +6,18 @@ const gameRooms = new Map();
 
 export default async function SocketHandler(req, res) {
   // Conectar ao MongoDB para operações com o banco de dados
-  await dbConnect();
+  try {
+    const dbResult = await dbConnect();
+    
+    if (dbResult.connectionFailed) {
+      console.warn('Aviso: MongoDB não está conectado. O servidor Socket.IO continuará funcionando, mas sem persistência de dados.');
+    } else {
+      console.log('MongoDB conectado com sucesso para o servidor Socket.IO');
+    }
+  } catch (error) {
+    console.error('Erro ao conectar ao MongoDB:', error);
+    console.warn('Continuando com o Socket.IO sem persistência de dados');
+  }
 
   // Verificar se o Socket.IO já está inicializado
   if (res.socket.server.io) {

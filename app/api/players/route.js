@@ -2,7 +2,7 @@ import { connectToDB } from '@/lib/mongodb';
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 
-// Cache para armazenar jogadores mockados ou verificar duplicatas
+// Cache para armazenar jogadores
 let cachedPlayers = null;
 let lastCacheTime = 0;
 const CACHE_DURATION = 60 * 1000; // 1 minuto
@@ -63,8 +63,8 @@ async function jogadorExiste(nome, db) {
   }
 }
 
-// Função para carregar jogadores em cache
-export async function carregarJogadores(forceRefresh = false) {
+// Função para carregar jogadores (não exportada como rota)
+async function carregarJogadores(forceRefresh = false) {
   const now = Date.now();
   
   // Se o cache ainda é válido e não foi solicitado refresh, retorna o cache
@@ -77,7 +77,7 @@ export async function carregarJogadores(forceRefresh = false) {
 
   try {
     // Tenta conectar ao MongoDB primeiro
-    const { db, client } = await connectToDB();
+    const { db } = await connectToDB();
     dbConnection = db;
     
     if (db) {
@@ -152,12 +152,10 @@ export async function POST(request) {
     
     // Conectar ao MongoDB
     let dbConnection = null;
-    let mongoClient = null;
     
     try {
-      const { db, client } = await connectToDB();
+      const { db } = await connectToDB();
       dbConnection = db;
-      mongoClient = client;
     } catch (error) {
       console.error('Erro ao conectar ao MongoDB:', error);
       return NextResponse.json({ 
@@ -198,9 +196,8 @@ export async function POST(request) {
     novoJogador._id = result.insertedId.toString();
     novoJogador.id = result.insertedId.toString();
     
-    if (cachedPlayers) {
-      cachedPlayers.push(novoJogador);
-    }
+    // Invalidar cache
+    cachedPlayers = null;
     
     // Retornar resposta de sucesso
     return NextResponse.json({ 

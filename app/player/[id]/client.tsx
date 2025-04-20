@@ -13,15 +13,36 @@ export default function PlayerDetailClient({ params }: { params: { id: string } 
   useEffect(() => {
     async function fetchPlayerData() {
       try {
-        // Attempt to fetch from the API
-        const response = await fetch(`/api/players/${playerId}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch player data');
+        // Em exportação estática, o output: 'export' no next.config.js não suporta rotas de API
+        // Verificar se estamos em um ambiente que suporta APIs
+        if (process.env.NODE_ENV === 'development') {
+          // Em desenvolvimento, tentar API primeiro
+          try {
+            const response = await fetch(`/api/players/${playerId}`);
+            
+            if (response.ok) {
+              const data = await response.json();
+              setPlayer(data.player);
+              setLoading(false);
+              return;
+            }
+          } catch (apiError) {
+            console.error('Error fetching from API:', apiError);
+            // Fallback para dados mockados abaixo
+          }
         }
         
-        const data = await response.json();
-        setPlayer(data);
+        // Em produção com exportação estática ou se a API falhar em desenvolvimento
+        // Usar diretamente os dados mockados
+        const mockPlayer = getMockPlayerById(playerId);
+        if (mockPlayer) {
+          setPlayer(mockPlayer);
+          if (process.env.NODE_ENV !== 'development') {
+            setError('Usando dados offline. Alguns dados podem estar desatualizados.');
+          }
+        } else {
+          setError('Jogador não encontrado.');
+        }
       } catch (err) {
         console.error('Error fetching player data:', err);
         // Fall back to mock data if API request fails

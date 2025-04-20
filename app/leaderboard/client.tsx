@@ -17,15 +17,32 @@ export default function LeaderboardClient() {
   useEffect(() => {
     async function fetchRanking() {
       try {
-        // Attempt to fetch from the API
-        const response = await fetch('/api/ranking');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch ranking data');
+        // Em exportação estática, o output: 'export' no next.config.js não suporta rotas de API
+        // Verificar se estamos em um ambiente que suporta APIs
+        if (process.env.NODE_ENV === 'development') {
+          // Em desenvolvimento, tentar API primeiro
+          try {
+            const response = await fetch('/api/ranking');
+            
+            if (response.ok) {
+              const data = await response.json();
+              setRanking(data);
+              setLoading(false);
+              return;
+            }
+          } catch (apiError) {
+            console.error('Error fetching from API:', apiError);
+            // Fallback para dados mockados abaixo
+          }
         }
         
-        const data = await response.json();
-        setRanking(data);
+        // Em produção com exportação estática ou se a API falhar em desenvolvimento
+        // Usar diretamente os dados mockados
+        const mockData = getLocalMockRanking();
+        setRanking(mockData);
+        if (process.env.NODE_ENV !== 'development') {
+          setError('Usando dados offline. Alguns dados podem estar desatualizados.');
+        }
       } catch (err) {
         console.error('Error fetching ranking:', err);
         // Fall back to mock data if API request fails

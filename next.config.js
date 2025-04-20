@@ -3,7 +3,7 @@
 const nextConfig = {
   reactStrictMode: false,
   swcMinify: true,
-  // output: 'export', // Comentado para permitir rotas dinâmicas nas APIs
+  output: 'export', // Habilitar exportação estática para Netlify
   
   // Configuração para trabalhar com MongoDB
   webpack: (config) => {
@@ -26,7 +26,7 @@ const nextConfig = {
   // Configuração para otimização de imagens
   images: {
     domains: ['localhost'],
-    unoptimized: true // Usar imagens não otimizadas para evitar problemas no Netlify
+    unoptimized: true // Necessário para exportação estática
   },
 
   // Desativar compressão para evitar problemas no Netlify
@@ -38,6 +38,13 @@ const nextConfig = {
     maxInactiveAge: 60 * 60 * 1000, // 1 hora
     // Número de páginas a manter no buffer
     pagesBufferLength: 5
+  },
+
+  // Desabilitar exportação das rotas de API (não funcionam com output: 'export')
+  experimental: {
+    outputFileTracingExcludes: {
+      '/api/**': true,
+    },
   }
 };
 

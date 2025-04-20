@@ -8,6 +8,7 @@
     "postbuild": "cp public/_redirects .next/ || copy public\\_redirects .next\\ && cp public/index.html .next/ || copy public\\index.html .next\\ && cp public/leaderboard.html .next/ || copy public\\leaderboard.html .next\\",
     "prebuild:static": "rimraf .next && rimraf out",
     "build:static": "node scripts/prepare-static.js && next build && node scripts/prepare-static.js",
+    "build:netlify": "node scripts/netlify-build.js && next build && node scripts/netlify-build.js",
     "start": "next start",
     "lint": "next lint",
     "check-mongodb": "node scripts/check-mongodb.js"

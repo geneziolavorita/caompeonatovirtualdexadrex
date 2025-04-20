@@ -8,11 +8,18 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Configuração para SPA fallback
+# Configurações de redirecionamento
+[[redirects]]
+  from = "/leaderboard"
+  to = "/leaderboard.html"
+  status = 200
+  force = false
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
 
 # Configurações de cabeçalhos
 [[headers]]

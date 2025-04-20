@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postbuild": "cp public/_redirects .next/ || copy public\\_redirects .next\\",
+    "postbuild": "cp public/_redirects .next/ || copy public\\_redirects .next\\ && cp public/index.html .next/ || copy public\\index.html .next\\ && cp public/leaderboard.html .next/ || copy public\\leaderboard.html .next\\",
     "build:static": "next build",
     "start": "next start",
     "lint": "next lint",

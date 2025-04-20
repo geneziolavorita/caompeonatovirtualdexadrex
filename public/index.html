@@ -42,19 +42,68 @@
       font-weight: bold;
       margin-top: 20px;
     }
+    .hidden {
+      display: none;
+    }
+    .error {
+      color: #e74c3c;
+      margin-top: 20px;
+      padding: 10px;
+      border-left: 4px solid #e74c3c;
+      background-color: #fadbd8;
+      text-align: left;
+      max-width: 600px;
+    }
   </style>
 </head>
 <body>
   <h1>Campeonato Virtual de Xadrez</h1>
   <p>Bem-vindo ao nosso campeonato virtual de xadrez. Estamos carregando a aplicação...</p>
   <div class="loading">Aguarde enquanto preparamos o ambiente para você.</div>
-  <a href="/" class="button">Ir para a página inicial</a>
+  
+  <div id="error-message" class="error hidden">
+    <p><strong>Não foi possível carregar a aplicação:</strong></p>
+    <p>Ocorreu um problema ao inicializar o aplicativo. Tente recarregar a página.</p>
+  </div>
+  
+  <div id="buttons">
+    <a href="javascript:void(0)" onclick="forceReload()" class="button">Tentar Novamente</a>
+    <a href="/leaderboard" class="button" style="background-color: #3498db; margin-left: 10px;">Ver Classificação</a>
+  </div>
   
   <script>
-    // Redirecionar para a página inicial após 3 segundos
+    // Contador para evitar loops infinitos
+    let attemptCount = parseInt(localStorage.getItem('loadAttempts') || '0');
+    
+    // Se já tentamos muitas vezes, mostre mensagem de erro
+    if (attemptCount > 3) {
+      document.getElementById('error-message').classList.remove('hidden');
+    }
+    
+    // Função para tentar novamente com reload forçado
+    function forceReload() {
+      localStorage.removeItem('loadAttempts');
+      window.location.href = '/?forceReload=' + new Date().getTime();
+    }
+    
+    // Adicionar à contagem de tentativas
+    localStorage.setItem('loadAttempts', (attemptCount + 1).toString());
+    
+    // Redirect to actual app after delay, but try different paths
     setTimeout(function() {
-      window.location.href = '/';
+      // Se estamos na página inicial, tente acessar uma rota específica
+      if (window.location.pathname === '/' || window.location.pathname === '') {
+        window.location.href = '/leaderboard';
+      } else {
+        // Se já estamos em uma rota específica, tente a página inicial
+        window.location.href = '/';
+      }
     }, 3000);
+    
+    // Limpar contador após 10 minutos
+    setTimeout(function() {
+      localStorage.removeItem('loadAttempts');
+    }, 10 * 60 * 1000);
   </script>
 </body>
 </html> 

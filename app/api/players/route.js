@@ -113,6 +113,13 @@ async function carregarJogadores(forceRefresh = false) {
   return jogadores;
 }
 
+// Adicionar no início do arquivo, antes das funções existentes
+export async function generateStaticParams() {
+  // Esta rota não tem parâmetros dinâmicos, mas precisamos da função
+  // para compatibilidade com o output: 'export'
+  return [{}];
+}
+
 // GET - Obter lista de jogadores
 export async function GET(request) {
   try {

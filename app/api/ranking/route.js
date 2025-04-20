@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Player from '@/models/Player';
 
+// Função para gerar parâmetros estáticos para pré-renderização
+export async function generateStaticParams() {
+  // Esta rota não tem parâmetros dinâmicos, mas precisamos da função
+  // para compatibilidade com o output: 'export'
+  return [{}];
+}
+
 // Configurar para usar o runtime Node.js
 export const runtime = 'nodejs';
 

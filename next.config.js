@@ -40,11 +40,11 @@ const nextConfig = {
     pagesBufferLength: 5
   },
 
-  // Desabilitar exportação das rotas de API (não funcionam com output: 'export')
+  // Atualizado: Desabilitar exportação das rotas de API (não funcionam com output: 'export')
   experimental: {
     outputFileTracingExcludes: {
-      '**/api/**': true,
-      '**/app/api/**': true
+      '**/api/**': ['**/*.js', '**/*.ts'],
+      '**/app/api/**': ['**/*.js', '**/*.ts']
     }
   }
 };

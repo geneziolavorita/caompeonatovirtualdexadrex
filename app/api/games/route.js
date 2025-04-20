@@ -8,6 +8,13 @@ import { v4 as uuidv4 } from 'uuid';
 // export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// Adicionar no início do arquivo, antes das funções existentes
+export async function generateStaticParams() {
+  // Esta rota não tem parâmetros dinâmicos, mas precisamos da função
+  // para compatibilidade com o output: 'export'
+  return [{}];
+}
+
 // Função para atualizar as estatísticas de um jogador após um jogo
 async function updatePlayerStats(playerId, resultado) {
   try {

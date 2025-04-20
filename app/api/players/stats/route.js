@@ -5,6 +5,13 @@ import { connectToDB } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { getMockPlayerById, mockPlayers, mockGames } from '@/lib/mock-data';
 
+// Função para gerar parâmetros estáticos para pré-renderização
+export async function generateStaticParams() {
+  // Esta rota não tem parâmetros dinâmicos, mas precisamos da função
+  // para compatibilidade com o output: 'export'
+  return [{}];
+}
+
 // Para exportação estática, não podemos usar force-dynamic
 // export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';

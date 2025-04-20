@@ -8,6 +8,12 @@ import os from 'os';
 
 export const runtime = 'nodejs';
 
+export async function generateStaticParams() {
+  // Esta rota não tem parâmetros dinâmicos, mas precisamos da função
+  // para compatibilidade com o output: 'export'
+  return [{}];
+}
+
 export async function GET() {
   try {
     console.log('Verificando status do sistema e conexão com o banco de dados...');

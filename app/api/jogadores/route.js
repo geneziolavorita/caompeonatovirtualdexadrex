@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { connectToDB } from '@/lib/mongodb';
 
+export async function generateStaticParams() {
+  // Esta rota não tem parâmetros dinâmicos, mas precisamos da função
+  // para compatibilidade com o output: 'export'
+  return [{}];
+}
+
 export async function GET() {
   try {
     // Tentar obter jogadores do banco de dados

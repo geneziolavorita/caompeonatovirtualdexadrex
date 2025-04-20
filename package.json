@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "postbuild": "cp public/_redirects .next/ || copy public\\_redirects .next\\ && cp public/index.html .next/ || copy public\\index.html .next\\ && cp public/leaderboard.html .next/ || copy public\\leaderboard.html .next\\",
+    "prebuild:static": "rimraf .next && rimraf out",
     "build:static": "node scripts/prepare-static.js && next build && node scripts/prepare-static.js",
     "start": "next start",
     "lint": "next lint",
@@ -21,6 +22,7 @@
     "react": "^18",
     "react-dom": "^18",
     "react-hot-toast": "^2.5.2",
+    "rimraf": "^5.0.5",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "uuid": "^9.0.1"

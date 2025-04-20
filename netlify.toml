@@ -7,7 +7,7 @@
 # Configuração de ambiente
 [build.environment]
   NODE_VERSION = "18"
-  NPM_VERSION = "10"
+  NPM_VERSION = "9"
   NETLIFY_USE_YARN = "false"
   NODE_ENV = "production"
   NEXT_TELEMETRY_DISABLED = "1"

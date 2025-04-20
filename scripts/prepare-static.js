@@ -1,9 +1,42 @@
 // Script para preparar o ambiente para exportação estática
 const fs = require('fs');
 const path = require('path');
-const rimraf = require('rimraf');
 
 console.log('Preparando ambiente para exportação estática...');
+
+// Definir NODE_ENV para garantir que estamos em modo de produção
+process.env.NODE_ENV = 'production';
+
+// Função para remover diretório recursivamente (sem dependência externa)
+function removeDir(dir) {
+  if (!fs.existsSync(dir)) return;
+  
+  // Remover arquivos e subdiretórios
+  const items = fs.readdirSync(dir);
+  for (const item of items) {
+    const fullPath = path.join(dir, item);
+    const stat = fs.statSync(fullPath);
+    
+    if (stat.isDirectory()) {
+      // Recursivamente remover subdiretórios
+      removeDir(fullPath);
+    } else {
+      // Remover arquivos
+      try {
+        fs.unlinkSync(fullPath);
+      } catch (e) {
+        console.log(`Não foi possível remover o arquivo ${fullPath}: ${e.message}`);
+      }
+    }
+  }
+  
+  // Remover o diretório vazio
+  try {
+    fs.rmdirSync(dir);
+  } catch (e) {
+    console.log(`Não foi possível remover o diretório ${dir}: ${e.message}`);
+  }
+}
 
 // Garantir que a pasta out exista
 const outDir = path.join(process.cwd(), 'out');
@@ -23,7 +56,7 @@ const apiDirs = [
 apiDirs.forEach(dir => {
   if (fs.existsSync(dir)) {
     try {
-      rimraf.sync(dir);
+      removeDir(dir);
       console.log(`Diretório de API removido para compatibilidade com build estático: ${dir}`);
     } catch (e) {
       console.log(`Não foi possível remover ${dir}: ${e.message}`);

@@ -8,7 +8,12 @@ export async function generateStaticParams() {
   // Retorna alguns parâmetros padrão para permitir a exportação estática
   return [
     { roomId: 'default' },
-    { roomId: 'lobby' }
+    { roomId: 'lobby' },
+    { roomId: 'game1' },
+    { roomId: 'game2' },
+    { roomId: 'game3' },
+    { roomId: 'computer' },
+    { roomId: 'practice' }
   ];
 }
 

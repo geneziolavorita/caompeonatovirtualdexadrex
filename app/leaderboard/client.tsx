@@ -1,8 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getMockRanking, MockPlayer } from '@/lib/mock-data';
+import { mockPlayers, MockPlayer } from '@/lib/mock-data';
 import Link from 'next/link';
+
+// Função local para caso a importação da função original falhe
+function getLocalMockRanking(): MockPlayer[] {
+  return [...mockPlayers].sort((a, b) => b.pontuacao - a.pontuacao);
+}
 
 export default function LeaderboardClient() {
   const [ranking, setRanking] = useState<MockPlayer[]>([]);
@@ -24,7 +29,7 @@ export default function LeaderboardClient() {
       } catch (err) {
         console.error('Error fetching ranking:', err);
         // Fall back to mock data if API request fails
-        const mockData = getMockRanking();
+        const mockData = getLocalMockRanking();
         setRanking(mockData);
         setError('Usando dados offline. Alguns dados podem estar desatualizados.');
       } finally {

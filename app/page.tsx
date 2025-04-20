@@ -29,301 +29,39 @@ const ExitFullscreenIcon = () => (
   </svg>
 );
 
-export default function Home() {
-  const [game, setGame] = useState<Chess>(new Chess())
-  const [player1Name, setPlayer1Name] = useState('Jogador 1')
-  const [player2Name, setPlayer2Name] = useState('Jogador 2')
-  const [player1Id, setPlayer1Id] = useState<string>('')
-  const [player2Id, setPlayer2Id] = useState<string>('')
-  const [players, setPlayers] = useState<Player[]>([])
-  const [gameMode, setGameMode] = useState<'player' | 'computer'>('player')
-  const [gameStarted, setGameStarted] = useState(false)
-  const [showRules, setShowRules] = useState(false)
-  const [isFullscreen, setIsFullscreen] = useState(false)
-  const [showRanking, setShowRanking] = useState(false)
-  const [showRegistration, setShowRegistration] = useState(false)
-  const [gameStartTime, setGameStartTime] = useState<Date | null>(null)
-  const gameContainerRef = useRef<HTMLDivElement>(null)
-
-  // Verificar se a API de tela cheia está disponível
-  const [fullscreenSupported, setFullscreenSupported] = useState(false)
-
-  useEffect(() => {
-    // Verificar se o URL contém um parâmetro para mostrar o registro
-    const urlParams = new URLSearchParams(window.location.search)
-    if (urlParams.get('showRegistration') === 'true') {
-      setShowRegistration(true)
-    }
-
-    // Verificar suporte a tela cheia
-    checkFullscreenSupport()
-    
-    // Adicionar listener para mudanças de tela cheia
-    document.addEventListener('fullscreenchange', handleFullscreenChange)
-    
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange)
-    }
-  }, [])
-
-  const checkFullscreenSupport = () => {
-    const elem = document.documentElement;
-    
-    // Verificar suporte a tela cheia com diferentes prefixos de navegador
-    const fullscreenAPI = 
-      typeof elem.requestFullscreen === 'function' ||
-      // @ts-ignore - Prefixo webkit para Safari e versões antigas do Chrome
-      typeof elem.webkitRequestFullscreen === 'function' ||
-      // @ts-ignore - Prefixo moz para Firefox
-      typeof elem.mozRequestFullScreen === 'function' ||
-      // @ts-ignore - Prefixo ms para IE/Edge antigo
-      typeof elem.msRequestFullscreen === 'function';
-      
-    setFullscreenSupported(fullscreenAPI);
-  }
-
-  const handleRestartCurrentGame = () => {
-    const newGame = new Chess()
-    setGame(newGame)
-  }
-
-  const handleFullscreenChange = () => {
-    setIsFullscreen(!!document.fullscreenElement)
-  }
-
-  const toggleFullscreen = () => {
-    if (!gameContainerRef.current) return
-
-    if (!document.fullscreenElement) {
-      const elem = gameContainerRef.current
-      if (elem.requestFullscreen) {
-        elem.requestFullscreen()
-      }
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen()
-      }
-    }
-  }
-
-  const handleStartGame = () => {
-    setGameStarted(true)
-    setGame(new Chess())
-
-    // Se estiver em modo de tela cheia, ativar
-    if (isFullscreen && fullscreenSupported && gameContainerRef.current) {
-      const elem = gameContainerRef.current
-      if (elem.requestFullscreen) {
-        elem.requestFullscreen()
-      }
-    }
-  }
-
-  const handleEndGame = () => {
-    setGameStarted(false)
-    setGameStartTime(null)
-    if (document.fullscreenElement) {
-      document.exitFullscreen()
-    }
-  }
-
-  const handleSelectPlayer1 = (id: string, name: string) => {
-    setPlayer1Id(id);
-    setPlayer1Name(name);
-  }
-
-  const handleSelectPlayer2 = (id: string, name: string) => {
-    setPlayer2Id(id);
-    setPlayer2Name(name);
-  }
-
-  const handlePlayerRegistered = () => {
-    // Atualizar a interface após cadastro de jogador
-    setShowRegistration(false)
-  }
-
-  // Mapear o modo de jogo para o formato esperado pelo componente Chessboard
-  const getMappedGameMode = (): 'player' | 'computer' => {
-    // O gameMode já está no formato correto agora
-    return gameMode;
-  }
-
+export default function HomePage() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="text-center mb-2">
-        <h2 className="text-xl font-semibold text-wood-dark">CAMPEONATO VIRTUAL DE XADREZ</h2>
-        <h3 className="text-lg font-medium text-wood-dark">EEB PROFESSOR PEDRO TEIXEIRA BARROSO - ITAPIPOCA CEARÁ</h3>
-      </div>
-      
-      <h1 className="text-4xl font-bold text-center mb-4 text-wood-dark">XADREX</h1>
-      
-      <div className="text-center mb-8">
-        <p className="text-sm text-wood-dark">Orientação e Desenvolvimento: Professor Genezio de Lavor</p>
-      </div>
-      
-      {!gameStarted ? (
-        <div>
-          <div className="flex flex-col md:flex-row gap-6 mb-8">
-            <div className="flex-1">
-              <div className="bg-wood-light p-6 rounded-lg shadow-md mb-6">
-                <h2 className="text-xl font-bold mb-4 text-wood-dark">Iniciar Nova Partida Local</h2>
-                
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-wood-dark mb-1">
-                    Modo de Jogo
-                  </label>
-                  <select
-                    value={gameMode}
-                    onChange={(e) => setGameMode(e.target.value as 'player' | 'computer')}
-                    className="w-full px-3 py-2 border border-wood-medium rounded-md focus:outline-none focus:ring-2 focus:ring-wood-dark"
-                  >
-                    <option value="player">Jogador vs Jogador</option>
-                    <option value="computer">Jogador vs Computador</option>
-                  </select>
-                </div>
-                
-                {gameMode === 'player' ? (
-                  <>
-                    <PlayerSelect 
-                      label="Jogador 1 (Brancas)"
-                      onSelect={(player) => handleSelectPlayer1(player._id, player.name)}
-                      selectedPlayer={players.find((p: Player) => p._id === player1Id)}
-                    />
-                    <PlayerSelect 
-                      label="Jogador 2 (Pretas)"
-                      onSelect={(player) => handleSelectPlayer2(player._id, player.name)}
-                      selectedPlayer={players.find((p: Player) => p._id === player2Id)}
-                    />
-                  </>
-                ) : (
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-wood-dark mb-1">
-                      Seu Nome
-                    </label>
-                    <input
-                      type="text"
-                      value={player1Name}
-                      onChange={(e) => setPlayer1Name(e.target.value)}
-                      className="w-full px-3 py-2 border border-wood-medium rounded-md focus:outline-none focus:ring-2 focus:ring-wood-dark"
-                    />
-                  </div>
-                )}
-                
-                <div className="mb-4">
-                  <label className="flex items-center text-sm font-medium text-wood-dark">
-                    <input
-                      type="checkbox"
-                      checked={isFullscreen}
-                      onChange={(e) => setIsFullscreen(e.target.checked)}
-                      className="mr-2 h-4 w-4 text-wood-dark focus:ring-wood-dark border-wood-medium rounded"
-                    />
-                    Iniciar em tela cheia
-                  </label>
-                </div>
-                
-                <button
-                  onClick={handleStartGame}
-                  className="w-full bg-wood-dark text-white py-2 px-4 rounded-md hover:bg-wood-medium focus:outline-none focus:ring-2 focus:ring-wood-dark"
-                >
-                  Iniciar Jogo Local
-                </button>
-              </div>
-              
-              <CreateGameRoom />
-              
-              <div className="flex gap-4 mb-6">
-                <button
-                  onClick={() => setShowRegistration(!showRegistration)}
-                  className="flex-1 bg-wood-medium text-white py-2 px-4 rounded-md hover:bg-wood-dark focus:outline-none focus:ring-2 focus:ring-wood-dark"
-                >
-                  {showRegistration ? 'Fechar Registro' : 'Registrar Jogador'}
-                </button>
-                
-                <button
-                  onClick={() => setShowRanking(!showRanking)}
-                  className="flex-1 bg-wood-medium text-white py-2 px-4 rounded-md hover:bg-wood-dark focus:outline-none focus:ring-2 focus:ring-wood-dark"
-                >
-                  {showRanking ? 'Fechar Ranking' : 'Ver Ranking'}
-                </button>
-
-                <Link
-                  href="/cadastrar-jogador"
-                  className="flex-1 bg-wood-medium text-white py-2 px-4 rounded-md hover:bg-wood-dark focus:outline-none focus:ring-2 focus:ring-wood-dark text-center"
-                >
-                  Cadastro Direto
-                </Link>
-              </div>
-              
-              {showRegistration && (
-                <PlayerRegistration onPlayerRegistered={handlePlayerRegistered} />
-              )}
-            </div>
-            
-            {showRanking && (
-              <div className="flex-1">
-                <TournamentRanking />
-              </div>
-            )}
-          </div>
-          
-          <div className="text-center">
-            <button
-              onClick={() => setShowRules(!showRules)}
-              className="text-wood-dark underline hover:text-wood-medium focus:outline-none"
-            >
-              {showRules ? 'Ocultar Regras' : 'Ver Regras do Xadrez'}
-            </button>
-            
-            {showRules && (
-              <div className="mt-4 text-left bg-wood-lightest p-6 rounded-lg shadow-md">
-                <h3 className="text-lg font-bold mb-2 text-wood-dark">Regras Básicas do Xadrez</h3>
-                <ul className="list-disc pl-5 space-y-2 text-wood-dark">
-                  <li>O xadrez é jogado em um tabuleiro 8x8 entre dois jogadores.</li>
-                  <li>Cada jogador começa com 16 peças: 1 rei, 1 rainha, 2 torres, 2 cavalos, 2 bispos e 8 peões.</li>
-                  <li>O objetivo é dar xeque-mate no rei adversário, deixando-o sem movimentos válidos.</li>
-                  <li>As peças brancas sempre começam o jogo.</li>
-                  <li>Os jogadores se alternam, fazendo um movimento por vez.</li>
-                  <li>Cada tipo de peça se move de forma diferente:
-                    <ul className="list-disc pl-5 mt-1">
-                      <li>Peão: Move-se uma casa para frente (duas na primeira jogada) e captura peças na diagonal.</li>
-                      <li>Torre: Move-se em linha reta horizontalmente ou verticalmente.</li>
-                      <li>Cavalo: Move-se em forma de "L" (duas casas em uma direção e uma casa em direção perpendicular).</li>
-                      <li>Bispo: Move-se em diagonal.</li>
-                      <li>Rainha: Move-se em qualquer direção, combinando os movimentos da torre e do bispo.</li>
-                      <li>Rei: Move-se uma casa em qualquer direção.</li>
-                    </ul>
-                  </li>
-                  <li>Um peão que chega à última fileira pode ser promovido a qualquer outra peça (geralmente uma rainha).</li>
-                  <li>O roque permite mover o rei e a torre em um único movimento sob certas condições.</li>
-                </ul>
-              </div>
-            )}
-          </div>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+      <div className="max-w-3xl w-full bg-white rounded-lg shadow-lg p-8 m-4">
+        <h1 className="text-3xl font-bold text-center text-green-700 mb-6">
+          Campeonato Virtual de Xadrez
+        </h1>
+        
+        <div className="mb-8 p-4 bg-green-50 rounded-lg border border-green-200">
+          <p className="text-lg text-center text-gray-800">
+            Bem-vindo ao nosso campeonato de xadrez online! Aqui você pode competir 
+            com outros jogadores, acompanhar sua classificação e melhorar suas habilidades.
+          </p>
         </div>
-      ) : (
-        <div ref={gameContainerRef} className={`game-container ${isFullscreen ? 'fullscreen' : ''}`}>
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="md:w-3/4">
-              <Chessboard game={game} setGame={setGame} gameMode={getMappedGameMode()} />
-              <GameControls 
-                game={game} 
-                setGame={setGame} 
-                onEndGame={handleEndGame} 
-                isFullscreen={isFullscreen}
-                setIsFullscreen={setIsFullscreen}
-                gameContainerRef={gameContainerRef}
-              />
-            </div>
-            <div className="md:w-1/4">
-              <PlayerInfo 
-                player1Name={player1Name} 
-                player2Name={player2Name} 
-                game={game} 
-              />
-            </div>
-          </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <Link href="/leaderboard" className="bg-blue-600 hover:bg-blue-700 text-white text-center py-4 px-6 rounded-lg shadow transition-colors duration-200">
+            Ver Classificação
+          </Link>
+          <Link href="/game/lobby" className="bg-green-600 hover:bg-green-700 text-white text-center py-4 px-6 rounded-lg shadow transition-colors duration-200">
+            Jogar Agora
+          </Link>
         </div>
-      )}
+        
+        <div className="border-t border-gray-200 pt-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Sobre o Campeonato</h2>
+          <p className="text-gray-600">
+            Nosso campeonato utiliza regras oficiais de xadrez e oferece um ambiente 
+            competitivo amigável para jogadores de todos os níveis. Participe de partidas, 
+            acompanhe suas estatísticas e melhore seu jogo!
+          </p>
+        </div>
+      </div>
     </div>
-  )
+  );
 } 

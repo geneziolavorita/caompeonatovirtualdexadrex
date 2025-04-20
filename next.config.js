@@ -43,8 +43,9 @@ const nextConfig = {
   // Desabilitar exportação das rotas de API (não funcionam com output: 'export')
   experimental: {
     outputFileTracingExcludes: {
-      '/api/**': true,
-    },
+      '**/api/**': true,
+      '**/app/api/**': true
+    }
   }
 };
 

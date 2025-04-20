@@ -23,12 +23,6 @@ const nextConfig = {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   },
 
-  // Configuração específica para Netlify
-  experimental: {
-    // Desativar React Server Components
-    serverComponentsExternalPackages: []
-  },
-
   // Configuração para otimização de imagens
   images: {
     domains: ['localhost'],

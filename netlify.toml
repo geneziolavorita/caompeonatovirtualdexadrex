@@ -1,20 +1,18 @@
 # Configuração do build para Netlify
 [build]
-  command = "npm run build"  # Usar build padrão do Next.js em vez da versão estática
-  publish = ".next"          # Publicar a pasta .next em vez de out
+  command = "npm run build"
+  publish = ".next"
   functions = "netlify/functions"
 
 # Configurações de plugins
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Configurações de redirecionamento
+# Configuração para SPA fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-  force = false
-  conditions = {Role = ["anonymous"]}
 
 # Configurações de cabeçalhos
 [[headers]]

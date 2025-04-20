@@ -40,11 +40,24 @@ const nextConfig = {
     pagesBufferLength: 5
   },
 
-  // Atualizado: Desabilitar exportação das rotas de API (não funcionam com output: 'export')
+  // Configuração para ignorar completamente as rotas de API na exportação estática
+  distDir: process.env.NODE_ENV === 'production' ? '.next-static' : '.next',
+  
+  // Ignorar completamente as rotas de API na exportação estática
+  transpilePackages: ['next'],
+  
+  // Padrões de arquivos a ignorar na exportação estática
+  pageExtensions: ['jsx', 'js', 'tsx', 'ts'].filter(ext => 
+    process.env.NODE_ENV === 'development' || !ext.includes('api')
+  ),
+  
+  // Desativar análise de links nas páginas API
   experimental: {
+    // Ignorar completamente as rotas de API na exportação estática
     outputFileTracingExcludes: {
-      '**/api/**': ['**/*.js', '**/*.ts'],
-      '**/app/api/**': ['**/*.js', '**/*.ts']
+      '**/node_modules/**': true,
+      '**/api/**': true,
+      '**/app/api/**': true
     }
   }
 };

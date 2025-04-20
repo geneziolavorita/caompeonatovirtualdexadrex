@@ -1,6 +1,7 @@
 // Script para preparar o ambiente para exportação estática
 const fs = require('fs');
 const path = require('path');
+const rimraf = require('rimraf');
 
 console.log('Preparando ambiente para exportação estática...');
 
@@ -10,6 +11,25 @@ if (!fs.existsSync(outDir)) {
   fs.mkdirSync(outDir, { recursive: true });
   console.log('Diretório de saída criado: ' + outDir);
 }
+
+// Remover pastas de API para evitar erros de build estático
+const apiDirs = [
+  path.join(process.cwd(), '.next/server/app/api'),
+  path.join(process.cwd(), '.next/server/pages/api'),
+  path.join(process.cwd(), '.next-static/server/app/api'),
+  path.join(process.cwd(), '.next-static/server/pages/api')
+];
+
+apiDirs.forEach(dir => {
+  if (fs.existsSync(dir)) {
+    try {
+      rimraf.sync(dir);
+      console.log(`Diretório de API removido para compatibilidade com build estático: ${dir}`);
+    } catch (e) {
+      console.log(`Não foi possível remover ${dir}: ${e.message}`);
+    }
+  }
+});
 
 // Copiar fallback.html para out/index.html se um fallback não existir
 const fallbackPath = path.join(process.cwd(), 'public', 'fallback.html');

@@ -3,7 +3,7 @@
 const nextConfig = {
   reactStrictMode: false,
   swcMinify: true,
-  output: 'export',
+  // output: 'export', // Comentado para permitir rotas dinâmicas nas APIs
   
   // Configuração para trabalhar com MongoDB
   webpack: (config) => {

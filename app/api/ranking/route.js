@@ -4,7 +4,6 @@ import Player from '@/models/Player';
 
 // Configurar para usar o runtime Node.js
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
 
 // GET - Obter ranking de jogadores
 export async function GET() {

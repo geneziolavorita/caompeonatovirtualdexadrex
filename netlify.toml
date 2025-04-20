@@ -1,50 +1,26 @@
-# Configuração básica do Netlify 
-[build] 
-  command = "npm run build:static" 
-  publish = "out" 
- 
-[build.environment] 
-  NODE_VERSION = "18" 
-  NEXT_PRIVATE_STANDALONE = "true" 
-  # Não defina MONGODB_URI aqui - use as variáveis de ambiente do Netlify
-  # Configurações adicionais para tempos limite MongoDB
-  MONGODB_CONNECT_TIMEOUT = "30000" 
-  MONGODB_SOCKET_TIMEOUT = "75000" 
- 
-[[plugins]] 
-  package = "@netlify/plugin-nextjs" 
+# Configuração do build para Netlify
+[build]
+  command = "npm run build"  # Usar build padrão do Next.js em vez da versão estática
+  publish = ".next"          # Publicar a pasta .next em vez de out
+  functions = "netlify/functions"
 
-# Redirecionamentos necessários para Next.js - NÃO MODIFICAR ordem é importante
-[[redirects]]
-  from = "/_next/static/*"
-  to = "/static/:splat"
-  status = 200
+# Configurações de plugins
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
 
-[[redirects]]
-  from = "/_next/*"
-  to = "/_next/:splat"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
-  status = 200
-  force = true
-
-# Fallback para todas as outras rotas
+# Configurações de redirecionamento
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
+  conditions = {Role = ["anonymous"]}
 
-# Adicionar cabeçalhos para melhorar o comportamento da aplicação
+# Configurações de cabeçalhos
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
+    Content-Security-Policy = "frame-ancestors 'none'"
     X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-    # Permitir JavaScript e conexões WebSocket
-    Content-Security-Policy = "default-src 'self'; connect-src 'self' ws: wss: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'"

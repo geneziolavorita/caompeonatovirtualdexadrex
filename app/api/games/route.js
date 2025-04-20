@@ -4,7 +4,8 @@ import Game from '@/models/Game';
 import Player from '@/models/Player';
 import { v4 as uuidv4 } from 'uuid';
 
-export const dynamic = 'force-dynamic';
+// Remover força dinâmica para compatibilidade com exportação estática
+// export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 // Função para atualizar as estatísticas de um jogador após um jogo

@@ -6,6 +6,15 @@ import dynamic from 'next/dynamic';
 import { isBrowser } from '@/lib/clientUtils';
 import Link from 'next/link';
 
+// Adicionar esta função antes da função principal Page
+export async function generateStaticParams() {
+  // Retorna alguns parâmetros padrão para permitir a exportação estática
+  return [
+    { roomId: 'default' },
+    { roomId: 'lobby' }
+  ];
+}
+
 // Lazy-load dinâmico do componente de jogo real, sem SSR, 
 // com um timeout maior para evitar erros de timeouts
 const GameComponent = dynamic(

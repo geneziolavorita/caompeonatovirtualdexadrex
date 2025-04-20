@@ -3,7 +3,9 @@ import dbConnect from '@/lib/mongodb';
 import mongoose from 'mongoose';
 import os from 'os';
 
-export const dynamic = 'force-dynamic';
+// Comentar ou remover a linha abaixo
+// export const dynamic = 'force-dynamic';
+
 export const runtime = 'nodejs';
 
 export async function GET() {
